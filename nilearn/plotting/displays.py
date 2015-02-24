@@ -112,25 +112,26 @@ class BaseAxes(object):
 
         return xmin, xmax, ymin, ymax
 
-    def draw_left_right(self, size, bg_color, **kwargs):
+    def draw_left_right(self, size, bg_color=None, **kwargs):
         if self.direction == 'x':
             return
         ax = self.ax
         ax.text(.1, .95, 'L',
                 transform=ax.transAxes,
-                horizontalalignment='left',
-                verticalalignment='top',
+                horizontalalignment='center',
+                verticalalignment='center',
                 size=size,
-                bbox=dict(boxstyle="square,pad=0",
+                bbox=dict(boxstyle="square,pad=0.1",
                           ec=bg_color, fc=bg_color, alpha=1),
                 **kwargs)
 
         ax.text(.9, .95, 'R',
                 transform=ax.transAxes,
-                horizontalalignment='right',
-                verticalalignment='top',
+                horizontalalignment='center',
+                verticalalignment='center',
                 size=size,
-                bbox=dict(boxstyle="square,pad=0", ec=bg_color, fc=bg_color),
+                bbox=dict(boxstyle="square,pad=0.1",
+                          ec=bg_color, fc=bg_color, alpha=1),
                 **kwargs)
 
     def draw_position(self, size, bg_color, **kwargs):
@@ -173,14 +174,14 @@ class CutAxes(BaseAxes):
                              self.direction)
         return cut
 
-    def draw_position(self, size, bg_color, **kwargs):
+    def draw_position(self, size, bg_color=None, **kwargs):
         ax = self.ax
         ax.text(0, 0, '%s=%i' % (self.direction, self.coord),
                 transform=ax.transAxes,
-                horizontalalignment='left',
-                verticalalignment='bottom',
+                horizontalalignment='center',
+                verticalalignment='center',
                 size=size,
-                bbox=dict(boxstyle="square,pad=0",
+                bbox=dict(boxstyle="square,pad=0.1",
                           ec=bg_color, fc=bg_color, alpha=1),
                 **kwargs)
 
@@ -711,16 +712,16 @@ class BaseSlicer(object):
             else:
                 kwargs['color'] = 'k'
 
-        bg_color = ('k' if self._black_bg else 'w')
+        bg_color = ('k' if self._black_bg else None)  # None => transparent
         if left_right:
             for display_ax in self.axes.values():
                 display_ax.draw_left_right(size=size, bg_color=bg_color,
-                                       **kwargs)
+                                           **kwargs)
 
         if positions:
             for display_ax in self.axes.values():
                 display_ax.draw_position(size=size, bg_color=bg_color,
-                                       **kwargs)
+                                         **kwargs)
 
     def close(self):
         """ Close the figure. This is necessary to avoid leaking memory.
