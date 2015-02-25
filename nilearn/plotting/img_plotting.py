@@ -9,7 +9,9 @@ Only matplotlib is required.
 # License: BSD
 
 # Standard library imports
+import collections
 import functools
+import itertools
 import numbers
 
 # Standard scientific libraries imports (more specific imports are
@@ -830,3 +832,53 @@ def plot_connectome(adjacency_matrix, node_coords,
         display = None
 
     return display
+
+
+def plot_mosaic(imgs, plot_fn, aspect_ratio=1.3333, shape=None,
+                figure=None, output_file=None,
+                **kwargs):
+    """
+    """
+    if not isinstance(imgs, collections.Iterable):
+        return plot_mosaic(iter_img(imgs), plot_fn=plot_fn,
+                           aspect_ratio=aspect_ratio, shape=shape,
+                           figure=figure, output_file=output_file,
+                           **kwargs)
+    imgs = list(check_niimgs(imgs, accept_3d=True, return_iterator=True))
+
+    # Compute the grid size, and validate
+    n_plots = len(imgs)
+    if shape is None:
+        n_rows = int(np.round(np.sqrt(n_plots / float(aspect_ratio))))
+        n_cols = int(np.ceil(n_plots / float(n_rows)))
+        shape = (n_rows, n_cols)
+    if n_plots > np.asarray(shape).prod():
+        raise ValueError("Not enough subplots to accommodate images.")
+
+    # Massage params
+    def ensure_list(val, max_iters):
+        if (not isinstance(val, collections.Iterable)
+                or isinstance(val, basestring)):
+            return list(itertools.repeat(val, max_iters))
+        elif len(val) == max_iters:
+            return list(val)
+        else:
+            raise ValueError("Lengths don't match")
+    plot_fn = ensure_list(plot_fn, n_plots)
+    for arg_name, arg_val in kwargs.items():
+        kwargs[arg_name] = ensure_list(arg_val, n_plots)
+
+    # Convert dict of iterables to list of dicts
+    kwargs_list = []
+    for pi in range(n_plots):
+        kwargs_list.append(dict())
+        for k, v in kwargs.items():
+            kwargs_list[-1][k] = v[pi]
+
+    # Plot the grid.
+    figure = figure or plt.figure()
+    for fi, (img, cur_fn, plot_args) in enumerate(zip(imgs, plot_fn, kwargs_list)):
+        ax = figure.add_subplot(n_rows, n_cols, fi + 1)
+        cur_fn(img, axes=ax, **plot_args)
+
+    return figure
