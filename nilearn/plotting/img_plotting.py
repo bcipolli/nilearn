@@ -18,24 +18,27 @@ import numpy as np
 from scipy import ndimage
 from nibabel.spatialimages import SpatialImage
 
-from .._utils.testing import skip_if_running_nose
-from .._utils.numpy_conversions import as_ndarray
-
 try:
+    import matplotlib.pyplot as plt
     import pylab as pl
 except ImportError:
+    from .._utils.testing import skip_if_running_nose
     skip_if_running_nose('Could not import matplotlib')
 
+from . import cm
+from .displays import get_slicer, get_projector
 from .. import _utils
+from ..datasets import load_mni152_template
+from ..image import iter_img
 from .._utils import new_img_like
 from .._utils.extmath import fast_abs_percentile
 from .._utils.fixes.matplotlib_backports import (cbar_outline_get_xy,
                                                  cbar_outline_set_xy)
-from ..datasets import load_mni152_template
-from .displays import get_slicer, get_projector
-from . import cm
+from .._utils.numpy_conversions import as_ndarray
+from .._utils.niimg_conversions import check_niimgs
 
-################################################################################
+
+###############################################################################
 # Core, usage-agnostic functions
 
 
@@ -185,12 +188,11 @@ def plot_img(img, cut_coords=None, output_file=None, display_mode='ortho',
             Extra keyword arguments passed to pylab.imshow
     """
     display = _plot_img_with_bg(img, cut_coords=cut_coords,
-                    output_file=output_file, display_mode=display_mode,
-                    figure=figure, axes=axes, title=title,
-                    threshold=threshold, annotate=annotate,
-                    draw_cross=draw_cross, resampling_interpolation='continuous',
-                    black_bg=black_bg, colorbar=colorbar, **kwargs)
-
+                                output_file=output_file, display_mode=display_mode,
+                                figure=figure, axes=axes, title=title,
+                                threshold=threshold, annotate=annotate,
+                                draw_cross=draw_cross, resampling_interpolation='continuous',
+                                black_bg=black_bg, colorbar=colorbar, **kwargs)
     return display
 
 
@@ -231,12 +233,12 @@ class _MNI152Template(SpatialImage):
     def get_affine(self):
         self.load()
         return self.affine
-    
+
     @property
     def shape(self):
         self.load()
         return self._shape
-    
+
     def get_shape(self):
         self.load()
         return self._shape
