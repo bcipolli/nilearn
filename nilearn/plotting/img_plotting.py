@@ -882,3 +882,108 @@ def plot_mosaic(imgs, plot_fn, aspect_ratio=1.3333, shape=None,
         cur_fn(img, axes=ax, **plot_args)
 
     return figure
+
+
+def get_common_colorbar(imgs, symmetric=False):
+    data_bounds = [0., 1.]
+    for img in iter_img(imgs):
+        data = img.get_data()
+        data[np.isnan(data)] = 0.  # won't affect even symmetric == auto
+        if not symmetric or symmetric == 'auto':
+            cur_bounds = [data.min(), data.max()]
+        else:
+            cur_bounds = -np.abs(data).max() * np.asarray([-1, 1])
+        data_bounds[0] = np.min([data_bounds[0], cur_bounds[0]])
+        data_bounds[1] = np.max([data_bounds[1], cur_bounds[1]])
+
+    if symmetric == 'auto':
+        sign_sum = np.sign(data_bounds).sum()
+        if sign_sum == 2:  # same signs:
+            data_bounds[0] = 0.
+        elif sign_sum == -2:
+            data_bounds[1] = 0.
+
+    return tuple(data_bounds)
+
+
+def plot_mosaic_stat_map(stat_map_img, bg_img=MNI152TEMPLATE, cut_coords=None,
+                         output_file=None, display_mode='ortho', colorbar=True,
+                         figure=None, title=None, threshold=1e-6,
+                         annotate=True, draw_cross=True, black_bg='auto',
+                         cmap=cm.cold_hot, symmetric_cbar="auto",
+                         dim=True, **kwargs):
+    """ Plot cuts of an ROI/mask image (by default 3 cuts: Frontal, Axial, and
+        Lateral)
+
+        Parameters
+        ----------
+        stat_map_img : Niimg-like object
+            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+            The statistical map image
+        bg_img : Niimg-like object
+            See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
+            The background image that the ROI/mask will be plotted on top of. If
+            not specified MNI152 template will be used.
+        cut_coords : None, a tuple of floats, or an integer
+            The MNI coordinates of the point where the cut is performed
+            If display_mode is 'ortho', this should be a 3-tuple: (x, y, z)
+            For display_mode == 'x', 'y', or 'z', then these are the
+            coordinates of each cut in the corresponding direction.
+            If None is given, the cuts is calculated automaticaly.
+            If display_mode is 'x', 'y' or 'z', cut_coords can be an integer,
+            in which case it specifies the number of cuts to perform
+        output_file : string, or None, optional
+            The name of an image file to export the plot to. Valid extensions
+            are .png, .pdf, .svg. If output_file is not None, the plot
+            is saved to a file, and the display is closed.
+        display_mode : {'ortho', 'x', 'y', 'z'}
+            Choose the direction of the cuts: 'x' - saggital, 'y' - coronal,
+            'z' - axial, 'ortho' - three cuts are performed in orthogonal
+            directions.
+        colorbar : boolean, optional
+            If True, display a colorbar on the right of the plots.
+        figure : integer or matplotlib figure, optional
+            Matplotlib figure used or its number. If None is given, a
+            new figure is created.
+        title : string, optional
+            The title dispayed on the figure.
+        threshold : a number, None, or 'auto'
+            If None is given, the image is not thresholded.
+            If a number is given, it is used to threshold the image:
+            values below the threshold (in absolute value) are plotted
+            as transparent. If auto is given, the threshold is determined
+            magically by analysis of the image.
+        annotate: boolean, optional
+            If annotate is True, positions and left/right annotation
+            are added to the plot.
+        draw_cross: boolean, optional
+            If draw_cross is True, a cross is drawn on the plot to
+            indicate the cut plosition.
+        black_bg: boolean, optional
+            If True, the background of the image is set to be black. If
+            you wish to save figures with a black background, you
+            will need to pass "facecolor='k', edgecolor='k'" to pylab's
+            savefig.
+        cmap: matplotlib colormap, optional
+            The colormap for specified image
+        symmetric_cbar: boolean or 'auto', optional, default 'auto'
+            Specifies whether the colorbar should range from -vmax to vmax
+            or from 0 to vmax. Setting to 'auto' will select the latter if
+            the whole image is non-negative.
+
+        Notes
+        -----
+        Arrays should be passed in numpy convention: (x, y, z)
+        ordered.
+    """
+    if colorbar and 'vmax' not in kwargs:
+        _, kwargs['vmax'] = get_common_colorbar(stat_map_img,
+                                                symmetric=symmetric_cbar)
+
+    return plot_mosaic(stat_map_img, plot_stat_map,
+                       bg_img=bg_img, cut_coords=cut_coords,
+                       output_file=output_file, display_mode=display_mode,
+                       colorbar=colorbar, figure=figure,
+                       title=title, threshold=threshold, annotate=annotate,
+                       draw_cross=draw_cross, black_bg=black_bg,
+                       cmap=cmap, dim=dim, **kwargs)
