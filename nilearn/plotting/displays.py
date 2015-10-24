@@ -116,13 +116,14 @@ class BaseAxes(object):
         if self.direction == 'x':
             return
         ax = self.ax
+        alpha = 0 if bg_color is None else 1
         ax.text(.1, .95, 'L',
                 transform=ax.transAxes,
                 horizontalalignment='center',
                 verticalalignment='center',
                 size=size,
                 bbox=dict(boxstyle="square,pad=0.1",
-                          ec=bg_color, fc=bg_color, alpha=1),
+                          ec=bg_color, fc=bg_color, alpha=alpha),
                 **kwargs)
 
         ax.text(.9, .95, 'R',
@@ -131,7 +132,7 @@ class BaseAxes(object):
                 verticalalignment='center',
                 size=size,
                 bbox=dict(boxstyle="square,pad=0.1",
-                          ec=bg_color, fc=bg_color, alpha=1),
+                          ec=bg_color, fc=bg_color, alpha=alpha),
                 **kwargs)
 
     def draw_position(self, size, bg_color, **kwargs):
@@ -176,13 +177,14 @@ class CutAxes(BaseAxes):
 
     def draw_position(self, size, bg_color=None, **kwargs):
         ax = self.ax
+        alpha = 0 if bg_color is None else 1
         ax.text(0, 0, '%s=%i' % (self.direction, self.coord),
                 transform=ax.transAxes,
                 horizontalalignment='center',
                 verticalalignment='center',
                 size=size,
                 bbox=dict(boxstyle="square,pad=0.1",
-                          ec=bg_color, fc=bg_color, alpha=1),
+                          ec=bg_color, fc=bg_color, alpha=alpha),
                 **kwargs)
 
 
@@ -399,9 +401,11 @@ class BaseSlicer(object):
             img = _utils.check_niimg_3d(img)
 
         cut_coords = cls.find_cut_coords(img, threshold, cut_coords)
+        facecolor = 'k' if black_bg else 'w'
 
         if isinstance(axes, plt.Axes) and figure is None:
             figure = axes.figure
+            # axes.set_axis_bgcolor(facecolor)
 
         if not isinstance(figure, plt.Figure):
             # Make sure that we have a figure
@@ -418,11 +422,11 @@ class BaseSlicer(object):
 
             if leave_space:
                 figsize[0] += 3.4
-            figure = plt.figure(figure, figsize=figsize,
-                            facecolor=facecolor)
+            figure = plt.figure(figure, figsize=figsize, facecolor=facecolor)
+
         if isinstance(axes, plt.Axes):
             assert axes.figure is figure, ("The axes passed are not "
-                    "in the figure")
+                                           "in the figure")
 
         if axes is None:
             axes = [0., 0., 1., 1.]
@@ -712,14 +716,18 @@ class BaseSlicer(object):
             else:
                 kwargs['color'] = 'k'
 
-        bg_color = ('k' if self._black_bg else None)  # None => transparent
-        if left_right:
-            for display_ax in self.axes.values():
+        for display_ax in self.axes.values():
+            if self._black_bg:
+                # Remove transparency to avoid slice lines intersecting w/label
+                bg_color = (display_ax.ax.get_axis_bgcolor() or
+                            display_ax.ax.get_figure().get_facecolor())
+            else:
+                bg_color = None
+
+            if left_right:
                 display_ax.draw_left_right(size=size, bg_color=bg_color,
                                            **kwargs)
-
-        if positions:
-            for display_ax in self.axes.values():
+            if positions:
                 display_ax.draw_position(size=size, bg_color=bg_color,
                                          **kwargs)
 
