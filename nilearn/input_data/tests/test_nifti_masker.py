@@ -20,9 +20,13 @@ from numpy.testing import assert_array_equal
 from nibabel import Nifti1Image
 import nibabel
 
-from nilearn.input_data.nifti_masker import NiftiMasker
+from nilearn.input_data.nifti_masker import NiftiMasker, filter_and_mask
 from nilearn._utils import testing
+from nilearn._utils.exceptions import DimensionError
 from nilearn.image import index_img
+from nilearn._utils.testing import assert_raises_regex
+from nilearn._utils.exceptions import DimensionError
+from nilearn._utils.class_inspect import get_params
 
 
 def test_auto_mask():
@@ -31,9 +35,6 @@ def test_auto_mask():
     data[3:-3, 3:-3, 3:-3] = 10
     img = Nifti1Image(data, np.eye(4))
     masker = NiftiMasker()
-    # Check that if we have not fit the masker we get a intelligible
-    # error
-    assert_raises(ValueError, masker.transform, [img, ])
     # Smoke test the fit
     masker.fit(img)
     # Smoke test the transform
@@ -47,6 +48,19 @@ def test_auto_mask():
     testing.assert_raises_regex(
         ValueError,
         'has not been fitted. ', masker2.transform, img)
+
+
+def test_detrend():
+    # Check that detrending doesn't do something stupid with 3D images
+    data = np.zeros((9, 9, 9))
+    data[3:-3, 3:-3, 3:-3] = 10
+    img = Nifti1Image(data, np.eye(4))
+    mask = data.astype(np.int)
+    mask_img = Nifti1Image(mask, np.eye(4))
+    masker = NiftiMasker(mask_img=mask_img, detrend=True)
+    # Smoke test the fit
+    X = masker.fit_transform(img)
+    assert_true(np.any(X != 0))
 
 
 def test_with_files():
@@ -113,21 +127,20 @@ def test_mask_3d():
     data_img = Nifti1Image(data, np.eye(4))
 
     with testing.write_tmp_imgs(data_img, create_files=True)\
-                as filename:
+            as filename:
         masker = NiftiMasker(mask_img=filename)
         assert_raises(TypeError, masker.fit)
 
 
 def test_mask_4d():
     # Dummy mask
-    mask = np.zeros((10, 10, 10))
+    mask = np.zeros((10, 10, 10), dtype=int)
     mask[3:7, 3:7, 3:7] = 1
     mask_bool = mask.astype(bool)
     mask_img = Nifti1Image(mask, np.eye(4))
-    n_mask_vox = mask_bool.sum()
 
     # Dummy data
-    data = np.zeros((10, 10, 10, 3))
+    data = np.zeros((10, 10, 10, 3), dtype=int)
     data[..., 0] = 1
     data[..., 1] = 2
     data[..., 2] = 3
@@ -149,6 +162,45 @@ def test_mask_4d():
     masker.fit()
     data_trans2 = masker.transform(data_img_4d)
     assert_array_equal(data_trans2, data_trans_direct)
+
+
+def test_4d_single_scan():
+    mask = np.zeros((10, 10, 10))
+    mask[3:7, 3:7, 3:7] = 1
+    mask_img = Nifti1Image(mask, np.eye(4))
+
+    # Test that, in list of 4d images with last dimension=1, they are
+    # considered as 3d
+
+    data_5d = [np.random.random((10, 10, 10, 1)) for i in range(5)]
+    data_4d = [d[..., 0] for d in data_5d]
+    data_5d = [nibabel.Nifti1Image(d, np.eye(4)) for d in data_5d]
+    data_4d = [nibabel.Nifti1Image(d, np.eye(4)) for d in data_4d]
+
+    masker = NiftiMasker(mask_img=mask_img)
+    masker.fit()
+    data_trans_5d = masker.transform(data_5d)
+    data_trans_4d = masker.transform(data_4d)
+
+    assert_array_equal(data_trans_4d, data_trans_5d)
+
+
+def test_5d():
+    mask = np.zeros((10, 10, 10))
+    mask[3:7, 3:7, 3:7] = 1
+    mask_img = Nifti1Image(mask, np.eye(4))
+
+    # Test that, in list of 4d images with last dimension=1, they are
+    # considered as 3d
+
+    data_5d = [np.random.random((10, 10, 10, 3)) for i in range(5)]
+    data_5d = [nibabel.Nifti1Image(d, np.eye(4)) for d in data_5d]
+
+    masker = NiftiMasker(mask_img=mask_img)
+    masker.fit()
+    testing.assert_raises_regex(
+        DimensionError, 'Data must be a 4D Niimg-like object but you provided'
+        ' a list of 4D images.', masker.transform, data_5d)
 
 
 def test_sessions():
@@ -177,7 +229,7 @@ def test_joblib_cache():
     mask_img = Nifti1Image(mask, np.eye(4))
 
     with testing.write_tmp_imgs(mask_img, create_files=True)\
-                as filename:
+            as filename:
         masker = NiftiMasker(mask_img=filename)
         masker.fit()
         mask_hash = hash(masker.mask_img_)
@@ -202,8 +254,9 @@ def test_joblib_cache():
 def test_mask_init_errors():
     # Errors that are caught in init
     mask = NiftiMasker(mask_strategy='oops')
-    testing.assert_raises_regex(ValueError, "Unknown value of mask_strategy 'oops'",
-                                mask.fit)
+    testing.assert_raises_regex(
+        ValueError, "Unknown value of mask_strategy 'oops'",
+        mask.fit)
 
 
 def test_compute_epi_mask():
@@ -247,3 +300,18 @@ def test_compute_epi_mask():
 
     assert_false(np.allclose(mask1.get_data(),
                              mask4.get_data()[3:12, 3:12]))
+
+
+def test_filter_and_mask():
+    data = np.zeros([20, 30, 40, 5])
+    mask = np.zeros([20, 30, 40, 2])
+    mask[10, 15, 20, :] = 1
+
+    data_img = nibabel.Nifti1Image(data, np.eye(4))
+    mask_img = nibabel.Nifti1Image(mask, np.eye(4))
+
+    masker = NiftiMasker()
+    params = get_params(NiftiMasker, masker)
+
+    assert_raises_regex(DimensionError, "Data must be a 3D", filter_and_mask,
+                         data_img, mask_img, params)

@@ -21,7 +21,7 @@ This work is made available by a community of people, amongst which
 the INRIA Parietal Project Team and the scikit-learn folks, in particular
 P. Gervais, A. Abraham, V. Michel, A.
 Gramfort, G. Varoquaux, F. Pedregosa, B. Thirion, M. Eickenberg, C. F. Gorgolewski,
-D. Bzdok, L. Estève and B. Cippolini.
+D. Bzdok, L. Estève and B. Cipollini.
 
 Important links
 ===============
@@ -38,9 +38,8 @@ The required dependencies to use the software are:
 * setuptools
 * Numpy >= 1.6.1
 * SciPy >= 0.9
-* Scikit-learn >= 0.12.1
+* Scikit-learn >= 0.13 (Some examples require 0.14 to run)
 * Nibabel >= 1.1.0
-* Six
 
 If you are using nilearn plotting functionalities or running the
 examples, matplotlib >= 1.1.1 is required.

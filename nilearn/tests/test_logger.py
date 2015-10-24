@@ -33,16 +33,18 @@ def run():
 def other_run():
     # Test too large values for stack_level
     # stack_level should exceed nosetests stack levels as well
-    log("function other_run()", stack_level=30)
+    log("function other_run()", stack_level=100)
 
 
 class Run3(object):
+
     def run3(self):
         log("method Test3")
         run()
 
 
 class Run2(BaseEstimator):
+
     def run2(self):
         log("method Test2")
         t = Run()
@@ -50,6 +52,7 @@ class Run2(BaseEstimator):
 
 
 class Run(BaseEstimator):
+
     def run(self):
         log("method Test")
         run()
@@ -86,7 +89,7 @@ def test_log():
     # Test stack_level too large
     with capture_output() as out:
         other_run()
-    assert_equal(out[0], "[<module>] function other_run()\n")
+    assert_equal(out[0], "[<top_level>] function other_run()\n")
 
 # Will be executed by nosetests upon importing
 with capture_output() as out:

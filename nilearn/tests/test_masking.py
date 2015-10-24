@@ -1,7 +1,6 @@
 """
 Test the mask-extracting utilities.
 """
-import types
 import distutils.version
 import warnings
 import numpy as np
@@ -17,6 +16,7 @@ from nilearn.masking import (compute_epi_mask, compute_multi_epi_mask,
                              compute_background_mask, unmask, _unmask_3d,
                              _unmask_4d, intersect_masks, MaskWarning)
 from nilearn._utils.testing import (write_tmp_imgs, assert_raises_regex)
+from nilearn._utils.exceptions import DimensionError
 
 np_version = (np.version.full_version if hasattr(np.version, 'full_version')
               else np.version.short_version)
@@ -107,7 +107,7 @@ def test_apply_mask():
             data_img = Nifti1Image(data, affine)
             mask_img = Nifti1Image(mask, affine)
             with write_tmp_imgs(data_img, mask_img, create_files=create_files)\
-                     as filenames:
+                    as filenames:
                 series = masking.apply_mask(filenames[0], filenames[1],
                                             smoothing_fwhm=9)
 
@@ -132,11 +132,20 @@ def test_apply_mask():
 
     # veriy that 4D masks are rejected
     mask_img_4d = Nifti1Image(np.ones((40, 40, 40, 2)), np.eye(4))
-    assert_raises_regex(TypeError, "A 3D image is expected",
+    assert_raises_regex(DimensionError, "Data must be a 3D",
                         masking.apply_mask, data_img, mask_img_4d)
 
+    # Check that 3D data is accepted
+    data_3d = Nifti1Image(np.arange(27).reshape((3, 3, 3)), np.eye(4))
+    mask_data_3d = np.zeros((3, 3, 3))
+    mask_data_3d[1, 1, 0] = True
+    mask_data_3d[0, 1, 0] = True
+    mask_data_3d[0, 1, 1] = True
+    data_3d = masking.apply_mask(data_3d, Nifti1Image(mask_data_3d, np.eye(4)))
+    assert_equal(sorted(data_3d.tolist()), [3., 4., 12.])
+
     # Check data shape and affine
-    assert_raises_regex(TypeError, "A 3D image is expected",
+    assert_raises_regex(DimensionError, "Data must be a 3D",
                         masking.apply_mask, data_img,
                         Nifti1Image(mask[20, ...], affine))
     assert_raises(ValueError, masking.apply_mask,
@@ -200,26 +209,6 @@ def test_unmask():
             assert_true(t[0].flags["F_CONTIGUOUS"])
             assert_array_equal(t[0], unmasked3D)
 
-    # 5D test
-    shape5D = (10, 20, 30, 40, 41)
-    data5D = generator.rand(*shape5D)
-    mask = generator.randint(2, size=shape5D[:-1])
-    mask_img = Nifti1Image(mask, np.eye(4))
-    mask = mask.astype(bool)
-
-    masked5D = data5D[mask, :].T
-    unmasked5D = data5D.copy()
-    unmasked5D[-mask, :] = 0
-
-    t = unmask(masked5D, mask_img).get_data()
-    assert_equal(t.ndim, len(shape5D))
-    assert_array_equal(t, unmasked5D)
-    t = unmask([masked5D], mask_img)
-    t = [t_.get_data() for t_ in t]
-    assert_true(isinstance(t, list))
-    assert_equal(t[0].ndim, len(shape5D))
-    assert_array_equal(t[0], unmasked5D)
-
     # Error test: shape
     vec_1D = np.empty((500,), dtype=np.int)
     assert_raises(TypeError, unmask, vec_1D, mask_img)
@@ -241,12 +230,9 @@ def test_unmask():
                         unmask, transposed_vector, mask_img)
 
 
-def test_intersect_masks():
-    """ Test the intersect_masks function
-    """
-
+def test_intersect_masks_filename():
     # Create dummy masks
-    mask_a = np.zeros((4, 4), dtype=np.bool)
+    mask_a = np.zeros((4, 4, 1), dtype=np.bool)
     mask_a[2:4, 2:4] = 1
     mask_a_img = Nifti1Image(mask_a.astype(int), np.eye(4))
 
@@ -260,7 +246,7 @@ def test_intersect_masks():
     # |   |   | X | X |
     # +---+---+---+---+
 
-    mask_b = np.zeros((4, 4), dtype=np.bool)
+    mask_b = np.zeros((4, 4, 1), dtype=np.bool)
     mask_b[1:3, 1:3] = 1
     mask_b_img = Nifti1Image(mask_b.astype(int), np.eye(4))
 
@@ -274,7 +260,48 @@ def test_intersect_masks():
     # |   |   |   |   |
     # +---+---+---+---+
 
-    mask_c = np.zeros((4, 4), dtype=np.bool)
+    with write_tmp_imgs(mask_a_img, mask_b_img, create_files=True)\
+            as filenames:
+        mask_ab = np.zeros((4, 4, 1), dtype=np.bool)
+        mask_ab[2, 2] = 1
+        mask_ab_ = intersect_masks(filenames, threshold=1.)
+        assert_array_equal(mask_ab, mask_ab_.get_data())
+
+
+def test_intersect_masks():
+    """ Test the intersect_masks function
+    """
+
+    # Create dummy masks
+    mask_a = np.zeros((4, 4, 1), dtype=np.bool)
+    mask_a[2:4, 2:4] = 1
+    mask_a_img = Nifti1Image(mask_a.astype(int), np.eye(4))
+
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+    # |   |   | X | X |
+    # +---+---+---+---+
+    # |   |   | X | X |
+    # +---+---+---+---+
+
+    mask_b = np.zeros((4, 4, 1), dtype=np.bool)
+    mask_b[1:3, 1:3] = 1
+    mask_b_img = Nifti1Image(mask_b.astype(int), np.eye(4))
+
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+    # |   | X | X |   |
+    # +---+---+---+---+
+    # |   | X | X |   |
+    # +---+---+---+---+
+    # |   |   |   |   |
+    # +---+---+---+---+
+
+    mask_c = np.zeros((4, 4, 1), dtype=np.bool)
     mask_c[:, 2] = 1
     mask_c[0, 0] = 1
     mask_c_img = Nifti1Image(mask_c.astype(int), np.eye(4))
@@ -289,7 +316,7 @@ def test_intersect_masks():
     # |   |   | X |   |
     # +---+---+---+---+
 
-    mask_ab = np.zeros((4, 4), dtype=np.bool)
+    mask_ab = np.zeros((4, 4, 1), dtype=np.bool)
     mask_ab[2, 2] = 1
     mask_ab_ = intersect_masks([mask_a_img, mask_b_img], threshold=1.)
     assert_array_equal(mask_ab, mask_ab_.get_data())
@@ -359,5 +386,5 @@ def test_error_shape(random_state=42, shape=(3, 5, 7, 11)):
     assert_raises(TypeError, unmask, X, mask_img)
 
     X = rng.randn(n_samples, n_features)
-    # 2D X (should be ok)
-    unmask(X, mask_img)
+    # Raises an error because the mask is 4D
+    assert_raises(TypeError, unmask, X, mask_img)

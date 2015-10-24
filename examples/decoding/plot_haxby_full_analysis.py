@@ -18,6 +18,12 @@ that have been defined via a standard GLM-based analysis.
 from nilearn import datasets
 haxby_dataset = datasets.fetch_haxby(n_subjects=1)
 
+# print basic information on the dataset
+print('First subject anatomical nifti image (3D) located is at: %s' %
+      haxby_dataset.anat[0])
+print('First subject functional nifti image (4D) is located at: %s' %
+      haxby_dataset.func[0])
+
 # Load nilearn NiftiMasker, the practical masking and unmasking tool
 from nilearn.input_data import NiftiMasker
 
@@ -66,7 +72,8 @@ for mask_name in mask_names:
 
     for category in categories:
         print("Processing %s %s" % (mask_name, category))
-        classification_target = stimuli[np.logical_not(resting_state)] == category
+        task_mask = np.logical_not(resting_state)
+        classification_target = (stimuli[task_mask] == category)
         mask_scores[mask_name][category] = cross_val_score(
             classifier,
             masked_timecourses,

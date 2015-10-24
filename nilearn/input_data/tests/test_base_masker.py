@@ -6,9 +6,8 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import nibabel
 
-from nilearn.input_data.base_masker import filter_and_mask
+from nilearn.input_data.nifti_masker import filter_and_mask
 from nilearn import image
-from nilearn._utils.testing import assert_raises_regex
 
 
 def test_cropping_code_paths():
@@ -39,21 +38,14 @@ def test_cropping_code_paths():
                   "t_r": None,
                   "detrend": None,
                   "standardize": None
-                                 }
+                  }
 
     # Now do the two maskings
     out_data_uncropped, affine_uncropped = filter_and_mask(img,
-                                mask_img, parameters)
+                                                           mask_img,
+                                                           parameters)
     out_data_cropped, affine_cropped = filter_and_mask(img,
-                                cropped_mask_img, parameters)
+                                                       cropped_mask_img,
+                                                       parameters)
 
     assert_array_almost_equal(out_data_cropped, out_data_uncropped)
-
-
-def test_filter_and_mask():
-    data = np.zeros([20, 30, 40, 5])
-    mask = np.zeros([20, 30, 40, 2])
-    mask[10, 15, 20, :] = 1
-
-    assert_raises_regex(TypeError, "A 3D image is expected", filter_and_mask,
-                        data, mask, {})

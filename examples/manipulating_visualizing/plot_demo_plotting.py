@@ -14,6 +14,13 @@ from nilearn import plotting, image
 # localizer dataset to have contrast maps
 
 haxby_dataset = datasets.fetch_haxby(n_subjects=1)
+
+# print basic information on the dataset
+print('First subject anatomical nifti image (3D) is at: %s' %
+      haxby_dataset.anat[0])
+print('First subject functional nifti image (4D) is at: %s' %
+      haxby_dataset.func[0])  # 4D data
+
 haxby_anat_filename = haxby_dataset.anat[0]
 haxby_mask_filename = haxby_dataset.mask_vt[0]
 haxby_func_filename = haxby_dataset.func[0]
@@ -49,5 +56,4 @@ plotting.plot_roi(haxby_mask_filename, bg_img=haxby_anat_filename,
 mean_haxby_img = image.mean_img(haxby_func_filename)
 plotting.plot_epi(mean_haxby_img, title="plot_epi")
 
-import matplotlib.pyplot as plt
-plt.show()
+plotting.show()

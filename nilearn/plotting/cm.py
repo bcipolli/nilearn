@@ -5,14 +5,8 @@ Matplotlib colormaps useful for neuroimaging.
 """
 import numpy as _np
 
-from .._utils.testing import skip_if_running_nose
-
-try:
-    from matplotlib import cm as _cm
-    from matplotlib import colors as _colors
-except ImportError:
-    skip_if_running_nose('Could not import matplotlib')
-
+from matplotlib import cm as _cm
+from matplotlib import colors as _colors
 
 ################################################################################
 # Custom colormaps for two-tailed symmetric statistics
@@ -121,6 +115,7 @@ def alpha_cmap(color, name='', alpha_min=0.5, alpha_max=1.):
 # Our colormaps definition
 _cmaps_data = dict(
     cold_hot     = _pigtailed_cmap(_cm.hot),
+    cold_white_hot = _pigtailed_cmap(_cm.hot_r),
     brown_blue   = _pigtailed_cmap(_cm.bone),
     cyan_copper  = _pigtailed_cmap(_cm.copper),
     cyan_orange  = _pigtailed_cmap(_cm.YlOrBr_r),

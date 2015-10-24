@@ -137,7 +137,7 @@ def test_permuted_ols_check_h0_noeffect_labelswap(random_state=0):
     n_samples = 100
     # create dummy design with no effect
     target_var = rng.randn(n_samples, 1)
-    tested_var = np.arange(n_samples).reshape((-1, 1))
+    tested_var = np.arange(n_samples, dtype='f8').reshape((-1, 1))
     tested_var_not_centered = tested_var.copy()
     tested_var -= tested_var.mean(0)  # centered
     # permuted OLS
@@ -533,6 +533,3 @@ def test_sided_test2(random_state=0):
                               neg_log_pvals_onesided2[0][::-1])
     assert_array_almost_equal(neg_log_pvals_onesided + neg_log_pvals_onesided2,
                               neg_log_pvals_twosided)
-
-if __name__ == '__main__':
-    nose.run(argv=['', __file__])

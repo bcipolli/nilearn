@@ -1,5 +1,5 @@
 """
-Utilities to compute a brain mask from EPI images
+Utilities to compute and operate on brain masks
 """
 # Author: Gael Varoquaux, Alexandre Abraham, Philippe Gervais
 # License: simplified BSD
@@ -10,9 +10,9 @@ from scipy import ndimage
 from sklearn.externals.joblib import Parallel, delayed
 
 from . import _utils
-from ._utils import new_img_like
+from .image import new_img_like
 from ._utils.cache_mixin import cache
-from ._utils.ndimage import largest_connected_component
+from ._utils.ndimage import largest_connected_component, get_border_data
 from ._utils.niimg import _safe_get_data
 
 
@@ -24,7 +24,7 @@ warnings.simplefilter("always", MaskWarning)
 
 
 def _load_mask_img(mask_img, allow_empty=False):
-    ''' Check that a mask is valid, ie with two values including 0 and load it.
+    """Check that a mask is valid, ie with two values including 0 and load it.
 
     Parameters
     ----------
@@ -39,9 +39,8 @@ def _load_mask_img(mask_img, allow_empty=False):
     -------
     mask: numpy.ndarray
         boolean version of the mask
-    '''
-    # 3D image for mask_img not enforced here on purpose
-    mask_img = _utils.check_niimg(mask_img, ensure_3d=False)
+    """
+    mask_img = _utils.check_niimg_3d(mask_img)
     mask = mask_img.get_data()
     values = np.unique(mask)
 
@@ -160,7 +159,7 @@ def intersect_masks(mask_imgs, threshold=0.5, connected=True):
     if np.any(grp_mask > 0) and connected:
         grp_mask = largest_connected_component(grp_mask)
     grp_mask = _utils.as_ndarray(grp_mask, dtype=np.int8)
-    return new_img_like(mask_imgs[0], grp_mask, ref_affine)
+    return new_img_like(_utils.check_niimg_3d(mask_imgs[0]), grp_mask, ref_affine)
 
 
 def _post_process_mask(mask, affine, opening=2, connected=True,
@@ -185,8 +184,7 @@ def compute_epi_mask(epi_img, lower_cutoff=0.2, upper_cutoff=0.85,
                      ensure_finite=True,
                      target_affine=None, target_shape=None,
                      memory=None, verbose=0,):
-    """
-    Compute a brain mask from fMRI data in 3D or 4D ndarrays.
+    """Compute a brain mask from fMRI data in 3D or 4D ndarrays.
 
     This is based on an heuristic proposed by T.Nichols:
     find the least dense point of the histogram, between fractions
@@ -254,8 +252,6 @@ def compute_epi_mask(epi_img, lower_cutoff=0.2, upper_cutoff=0.85,
     """
     if verbose > 0:
         print("EPI mask computation")
-
-    epi_img = _utils.check_niimgs(epi_img, accept_3d=True)
 
     # Delayed import to avoid circular imports
     from .image.image import _compute_mean
@@ -422,7 +418,7 @@ def compute_background_mask(data_imgs, border_size=2,
     if verbose > 0:
         print("Background mask computation")
 
-    data_imgs = _utils.check_niimgs(data_imgs, accept_3d=True)
+    data_imgs = _utils.check_niimg(data_imgs)
 
     # Delayed import to avoid circular imports
     from .image.image import _compute_mean
@@ -430,12 +426,7 @@ def compute_background_mask(data_imgs, border_size=2,
                 target_affine=target_affine, target_shape=target_shape,
                 smooth=False)
 
-    border_data = np.concatenate([
-            data[:border_size, :, :].ravel(), data[-border_size:, :, :].ravel(),
-            data[:, :border_size, :].ravel(), data[:, -border_size:, :].ravel(),
-            data[:, :, :border_size].ravel(), data[:, :, -border_size:].ravel(),
-        ])
-    background = np.median(border_data)
+    background = np.median(get_border_data(data, border_size))
     if np.isnan(background):
         # We absolutely need to catter for NaNs as a background:
         # SPM does that by default
@@ -563,7 +554,7 @@ def apply_mask(imgs, mask_img, dtype='f',
     When using smoothing, ensure_finite is set to True, as non-finite
     values would spread accross the image.
     """
-    mask_img = _utils.check_niimg(mask_img, ensure_3d=False)
+    mask_img = _utils.check_niimg_3d(mask_img)
     mask, mask_affine = _load_mask_img(mask_img)
     mask_img = new_img_like(mask_img, mask, mask_affine)
     return _apply_mask_fmri(imgs, mask_img, dtype=dtype,
@@ -580,7 +571,7 @@ def _apply_mask_fmri(imgs, mask_img, dtype='f',
     values (this is checked for in apply_mask, not in this function).
     """
 
-    mask_img = _utils.check_niimg(mask_img, ensure_3d=True)
+    mask_img = _utils.check_niimg_3d(mask_img)
     mask_affine = mask_img.get_affine()
     mask_data = _utils.as_ndarray(mask_img.get_data(),
                                   dtype=np.bool)
@@ -588,7 +579,7 @@ def _apply_mask_fmri(imgs, mask_img, dtype='f',
     if smoothing_fwhm is not None:
         ensure_finite = True
 
-    imgs_img = _utils.check_niimgs(imgs)
+    imgs_img = _utils.check_niimg(imgs)
     affine = imgs_img.get_affine()[:3, :3]
 
     if not np.allclose(mask_affine, imgs_img.get_affine()):
@@ -712,7 +703,7 @@ def unmask(X, mask_img, order="F"):
             ret.append(unmask(x, mask_img, order=order))  # 1-level recursion
         return ret
 
-    mask_img = _utils.check_niimg(mask_img, ensure_3d=False)
+    mask_img = _utils.check_niimg_3d(mask_img)
     mask, affine = _load_mask_img(mask_img)
 
     if X.ndim == 2:

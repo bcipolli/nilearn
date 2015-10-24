@@ -12,6 +12,11 @@ from nilearn import datasets
 from nilearn.input_data import NiftiMasker
 nyu_dataset = datasets.fetch_nyu_rest(n_subjects=1)
 
+# print basic information on the dataset
+print('First anatomical nifti image (3D) is at: %s' % nyu_dataset.anat_anon[0])
+print('First functional nifti image (4D) is at: %s' %
+      nyu_dataset.func[0])  # 4D data
+
 ### Compute the mask ##########################################################
 
 # As this is raw resting-state EPI, the background is noisy and we cannot
@@ -23,8 +28,7 @@ nifti_masker.fit(func_filename)
 mask_img = nifti_masker.mask_img_
 
 ### Visualize the mask ########################################################
-import matplotlib.pyplot as plt
-from nilearn.plotting import plot_roi
+from nilearn.plotting import plot_roi, show
 from nilearn.image.image import mean_img
 
 # calculate mean image for the background
@@ -50,7 +54,7 @@ components = nifti_masker.inverse_transform(components_masked)
 from nilearn.plotting import plot_stat_map
 from nilearn.image import index_img
 
-plot_stat_map(index_img(components, 0), mean_func_img, display_mode='y',
-              cut_coords=4, title="Component 0")
+plot_stat_map(index_img(components, 0), mean_func_img,
+              display_mode='y', cut_coords=4, title="Component 0")
 
-plt.show()
+show()

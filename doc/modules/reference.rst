@@ -29,21 +29,24 @@ uses.
    :toctree: generated/
    :template: function.rst
 
+   fetch_atlas_craddock_2012
+   fetch_atlas_destrieux_2009
+   fetch_atlas_harvard_oxford
+   fetch_atlas_msdl
+   fetch_atlas_power_2011
+   fetch_atlas_smith_2009
+   fetch_atlas_yeo_2011
+   fetch_atlas_aal_spm_12
    fetch_abide_pcp
    fetch_adhd
-   fetch_craddock_2012_atlas
-   fetch_harvard_oxford
    fetch_haxby
    fetch_haxby_simple
    fetch_icbm152_2009
    fetch_localizer_contrasts
    fetch_localizer_calculation_task
    fetch_miyawaki2008
-   fetch_msdl_atlas
    fetch_nyu_rest
    fetch_oasis_vbm
-   fetch_smith_2009
-   fetch_yeo_2011_atlas
 
 .. _decoding_ref:
 
@@ -61,12 +64,14 @@ uses.
 .. autosummary::
    :toctree: generated/
    :template: class.rst
-   
+
+   SpaceNetClassifier
+   SpaceNetRegressor
    SearchLight
 
 .. _decomposition_ref:
 
-:mod:`nilearn.decompositon`: Multivariate decompositions
+:mod:`nilearn.decomposition`: Multivariate decompositions
 =========================================================
 
 .. automodule:: nilearn.decomposition
@@ -105,6 +110,7 @@ uses.
    iter_img
    high_variance_confounds
    mean_img
+   new_img_like
    resample_img
    reorder_img
    smooth_img
@@ -134,6 +140,7 @@ uses.
    MultiNiftiMasker
    NiftiLabelsMasker
    NiftiMapsMasker
+   NiftiSpheresMasker
 
 .. _masking_ref:
 
@@ -148,6 +155,29 @@ uses.
 
 **Functions**:
 
+.. currentmodule:: nilearn.masking
+
+.. autosummary::
+   :toctree: generated/
+   :template: function.rst
+
+   compute_epi_mask
+   compute_multi_epi_mask
+   compute_background_mask
+   compute_multi_background_mask
+   intersect_mask
+   apply_mask
+   unmask
+
+:mod:`nilearn.region`: Operating on regions
+==============================================
+
+.. automodule:: nilearn.region
+   :no-members:
+   :no-inherited-members:
+
+**Functions**:
+
 .. currentmodule:: nilearn.region
 
 .. autosummary::
@@ -159,11 +189,11 @@ uses.
    img_to_signals_maps
    signals_to_img_maps
 
+
 .. seealso::
 
    :func:`nilearn.masking.apply_mask`,
    :func:`nilearn.masking.unmask`
-
 
 :mod:`nilearn.mass_univariate`: Mass-univariate analysis
 =========================================================
@@ -210,7 +240,9 @@ uses.
    plot_stat_map
    plot_glass_brain
    plot_connectome
+   plot_prob_atlas
    find_xyz_cut_coords
+   show
 
 **Classes**:
 
@@ -219,7 +251,7 @@ uses.
 .. autosummary::
    :toctree: generated/
    :template: class.rst
-   
+
    OrthoSlicer
 
 

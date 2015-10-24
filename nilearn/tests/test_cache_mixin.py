@@ -7,7 +7,7 @@ import tempfile
 import json
 import glob
 
-from nose.tools import assert_false, assert_true
+from nose.tools import assert_false, assert_true, assert_equal
 
 from sklearn.externals.joblib import Memory
 
@@ -55,14 +55,14 @@ def test__safe_cache_flush():
         os.makedirs(nibabel_dir)
 
         # First turn off version checking
-        nilearn.check_cache_version = False
+        nilearn.CHECK_CACHE_VERSION = False
         cache_mixin._safe_cache(mem, f)
         assert_true(os.path.exists(nibabel_dir))
 
         # Second turn on version checking
-        nilearn.check_cache_version = True
+        nilearn.CHECK_CACHE_VERSION = True
         # Make sure that the check will run again
-        cache_mixin.__cache_checked = {}
+        cache_mixin.__CACHE_CHECKED = {}
         with open(version_file, 'w') as f:
             json.dump({"nibabel": [0, 0]}, f)
         cache_mixin._safe_cache(mem, f)
@@ -70,17 +70,20 @@ def test__safe_cache_flush():
         assert_false(os.path.exists(nibabel_dir))
     finally:
         pass
-        #if os.path.exists(temp_dir):
+        # if os.path.exists(temp_dir):
         #    shutil.rmtree(temp_dir)
 
 
 def test_cache_memory_level():
     temp_dir = tempfile.mkdtemp()
-    job_glob = os.path.join(temp_dir, 'joblib', '*')
+    job_glob = os.path.join(temp_dir, 'joblib', 'nilearn', 'tests',
+                            'test_cache_mixin', 'f', '*')
     mem = Memory(cachedir=temp_dir, verbose=0)
-    cache_mixin.cache(f, mem)(2)
-    assert_true(len(glob.glob(job_glob)) == 0)
     cache_mixin.cache(f, mem, func_memory_level=2, memory_level=1)(2)
-    assert_true(len(glob.glob(job_glob)) == 0)
+    assert_equal(len(glob.glob(job_glob)), 0)
+    cache_mixin.cache(f, Memory(cachedir=None))(2)
+    assert_equal(len(glob.glob(job_glob)), 0)
     cache_mixin.cache(f, mem, func_memory_level=2, memory_level=3)(2)
-    assert_true(len(glob.glob(job_glob)) == 2)
+    assert_equal(len(glob.glob(job_glob)), 2)
+    cache_mixin.cache(f, mem)(3)
+    assert_equal(len(glob.glob(job_glob)), 3)

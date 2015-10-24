@@ -15,6 +15,7 @@ if sys.version_info[0] == 3:
     StringIO = io.StringIO
     BytesIO = io.BytesIO
     _urllib = urllib
+    izip = zip
 
     def md5_hash(string):
         m = hashlib.md5()
@@ -27,10 +28,12 @@ else:
     import urllib2
     import urlparse
     import types
+    import itertools
 
     _basestring = basestring
     cPickle = cPickle
     StringIO = BytesIO = StringIO.StringIO
+    izip = itertools.izip
 
     class _module_lookup(object):
         modules = [urlparse, urllib2, urllib]
@@ -41,7 +44,8 @@ else:
                     attr = getattr(module, name)
                     if not isinstance(attr, types.ModuleType):
                         return attr
-            raise NotImplemented('This function has not be imported properly')
+            raise NotImplementedError(
+                'This function has not been imported properly')
 
     module_lookup = _module_lookup()
 

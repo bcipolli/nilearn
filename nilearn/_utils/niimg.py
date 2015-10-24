@@ -11,7 +11,6 @@ import collections
 import numpy as np
 import nibabel
 
-from .numpy_conversions import as_ndarray
 from .compat import _basestring
 
 
@@ -29,66 +28,87 @@ def _safe_get_data(img):
     return img.get_data()
 
 
-def load_img(img, dtype=None):
+def _get_data_dtype(img):
+    """Returns the dtype of an image.
+    If the image is non standard (no get_data_dtype member), this function
+    relies on the data itself.
+    """
+    try:
+        return img.get_data_dtype()
+    except AttributeError:
+        return img.get_data().dtype
+
+
+def _get_target_dtype(dtype, target_dtype):
+    """Returns a new dtype if conversion is needed
+
+    Parameters
+    ----------
+
+    dtype: dtype
+        Data type of the original data
+
+    target_dtype: {None, dtype, "auto"}
+        If None, no conversion is required. If a type is provided, the
+        function will check if a conversion is needed. The "auto" mode will
+        automatically convert to int32 if dtype is discrete and float32 if it
+        is continuous.
+
+    Returns
+    -------
+
+    dtype: dtype
+        The data type toward which the original data should be converted.
+    """
+
+    if target_dtype is None:
+        return None
+    if target_dtype == 'auto':
+        if dtype.kind == 'i':
+            target_dtype = np.int32
+        else:
+            target_dtype = np.float32
+    if target_dtype == dtype:
+        return None
+    return target_dtype
+
+
+def load_niimg(niimg, dtype=None):
     """Load a niimg, check if it is a nibabel SpatialImage and cast if needed
 
     Parameters:
     -----------
 
-    img: Niimg-like object
+    niimg: Niimg-like object
         See http://nilearn.github.io/building_blocks/manipulating_mr_images.html#niimg.
         Image to load.
+
+    dtype: {dtype, "auto"}
+        Data type toward which the data should be converted. If "auto", the
+        data will be converted to int32 if dtype is discrete and float32 if it
+        is continuous.
 
     Returns:
     --------
     img: image
         A loaded image object.
     """
-    if isinstance(img, _basestring):
+    from ..image import new_img_like  # avoid circular imports
+
+    if isinstance(niimg, _basestring):
         # data is a filename, we load it
-        img = nibabel.load(img)
-    elif not isinstance(img, nibabel.spatialimages.SpatialImage):
+        niimg = nibabel.load(niimg)
+    elif not isinstance(niimg, nibabel.spatialimages.SpatialImage):
         raise TypeError("Data given cannot be loaded because it is"
                         " not compatible with nibabel format:\n"
-                        + short_repr(img))
-    return img
+                        + short_repr(niimg))
 
+    dtype = _get_target_dtype(_get_data_dtype(niimg), dtype)
 
-def new_img_like(ref_img, data, affine, copy_header=False):
-    """Create a new image of the same class as the reference image
-
-    Parameters
-    ----------
-    ref_img: image
-        Reference image. The new image will be of the same type.
-
-    data: numpy array
-        Data to be stored in the image
-
-    affine: 4x4 numpy array
-        Transformation matrix
-
-    copy_header: boolean, optional
-        Indicated if the header of the reference image should be used to
-        create the new image
-
-    Returns
-    -------
-
-    new_img: image
-        An image which has the same type as the reference image.
-    """
-    if data.dtype == bool:
-        data = as_ndarray(data, dtype=np.int8)
-    header = None
-    if copy_header:
-        header = copy.copy(ref_img.get_header())
-        header['scl_slope'] = 0.
-        header['scl_inter'] = 0.
-        header['glmax'] = 0.
-        header['cal_max'] = np.max(data) if data.size > 0 else 0.
-        header['cal_max'] = np.min(data) if data.size > 0 else 0.
-    return ref_img.__class__(data, affine, header=header)
+    if dtype is not None:
+        niimg = new_img_like(niimg, niimg.get_data().astype(dtype),
+                             niimg.get_affine())
+    return niimg
 
 
 def copy_img(img):
@@ -104,6 +124,8 @@ def copy_img(img):
     img_copy: image
         copy of input (data, affine and header)
     """
+    from ..image import new_img_like  # avoid circular imports
+
     if not isinstance(img, nibabel.spatialimages.SpatialImage):
         raise ValueError("Input value is not an image")
     return new_img_like(img, img.get_data().copy(), img.get_affine().copy(),

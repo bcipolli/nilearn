@@ -16,7 +16,6 @@ underlying mask extraction routine
 
 """
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 import nibabel
@@ -27,12 +26,16 @@ from nilearn import datasets
 # From already masked data
 from nilearn.input_data import NiftiMasker
 import nilearn.image as image
-from nilearn.plotting.img_plotting import plot_roi
+from nilearn.plotting import plot_roi, show
 
 # Load Miyawaki dataset
 miyawaki_dataset = datasets.fetch_miyawaki2008()
-miyawaki_filename = miyawaki_dataset.func[0]
 
+# print basic information on the dataset
+print('First functional nifti image (4D) is located at: %s' %
+      miyawaki_dataset.func[0])  # 4D data
+
+miyawaki_filename = miyawaki_dataset.func[0]
 miyawaki_mean_img = image.mean_img(miyawaki_filename)
 
 # This time, we can use the NiftiMasker without changing the default mask
@@ -78,9 +81,10 @@ masker = NiftiMasker(mask_strategy='epi',
                      mask_args=dict(upper_cutoff=.9, lower_cutoff=.8,
                                     opening=False))
 masker.fit(nyu_img)
-plot_roi(masker.mask_img_, nyu_mean_img, title='EPI Mask: high lower_cutoff')
+plot_roi(masker.mask_img_, nyu_mean_img,
+         title='EPI Mask: high lower_cutoff')
 
-################################################################################
+###############################################################################
 # Extract time series
 
 # trended vs detrended
@@ -90,9 +94,8 @@ trended_data = trended.fit_transform(nyu_img)
 detrended_data = detrended.fit_transform(nyu_img)
 
 print("Trended: mean %.2f, std %.2f" %
-       (np.mean(trended_data), np.std(trended_data)))
+      (np.mean(trended_data), np.std(trended_data)))
 print("Detrended: mean %.2f, std %.2f" %
-       (np.mean(detrended_data), np.std(detrended_data)))
+      (np.mean(detrended_data), np.std(detrended_data)))
 
-
-plt.show()
+show()

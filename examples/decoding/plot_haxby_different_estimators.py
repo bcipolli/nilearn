@@ -12,6 +12,12 @@ import time
 from nilearn import datasets
 haxby_dataset = datasets.fetch_haxby(n_subjects=1)
 
+# print basic information on the dataset
+print('First subject anatomical nifti image (3D) located is at: %s' %
+      haxby_dataset.anat[0])
+print('First subject functional nifti image (4D) is located at: %s' %
+      haxby_dataset.func[0])
+
 # load labels
 import numpy as np
 labels = np.recfromcsv(haxby_dataset.session_target[0], delimiter=" ")
@@ -32,9 +38,10 @@ from nilearn.input_data import NiftiMasker
 mask_filename = haxby_dataset.mask_vt[0]
 masker = NiftiMasker(mask_img=mask_filename, standardize=True)
 func_filename = haxby_dataset.func[0]
-masked_timecourses = masker.fit_transform(func_filename)[np.logical_not(resting_state)]
+masked_timecourses = masker.fit_transform(
+    func_filename)[np.logical_not(resting_state)]
 
-### Classifiers definition
+# Classifiers definition
 
 # A support vector classifier
 from sklearn.svm import SVC
@@ -58,8 +65,9 @@ logistic_l2 = LogisticRegression(C=1., penalty="l2")
 logistic_cv = GridSearchCV(LogisticRegression(C=1., penalty="l1"),
                            param_grid={'C': [.1, .5, 1., 5., 10., 50., 100.]},
                            scoring='f1')
-logistic_l2_cv = GridSearchCV(LogisticRegression(C=1., penalty="l1"),
-                              param_grid={'C': [.1, .5, 1., 5., 10., 50., 100.]},
+logistic_l2_cv = GridSearchCV(LogisticRegression(C=1., penalty="l2"),
+                              param_grid={
+                                  'C': [.1, .5, 1., 5., 10., 50., 100.]},
                               scoring='f1')
 
 ridge = RidgeClassifier()
@@ -87,7 +95,8 @@ for classifier_name, classifier in sorted(classifiers.items()):
     print(70 * '_')
 
     for category in categories:
-        classification_target = stimuli[np.logical_not(resting_state)] == category
+        task_mask = np.logical_not(resting_state)
+        classification_target = (stimuli[task_mask] == category)
         t0 = time.time()
         classifiers_scores[classifier_name][category] = cross_val_score(
             classifier,
@@ -134,12 +143,13 @@ mean_epi_img = image.mean_img(func_filename)
 
 # Restrict the decoding to face vs house
 condition_mask = np.logical_or(stimuli == b'face', stimuli == b'house')
-masked_timecourses = masked_timecourses[condition_mask[np.logical_not(resting_state)]]
+masked_timecourses = masked_timecourses[
+    condition_mask[np.logical_not(resting_state)]]
 stimuli = stimuli[condition_mask]
 # Transform the stimuli to binary values
 stimuli = (stimuli == b'face').astype(np.int)
 
-from nilearn.plotting import plot_stat_map
+from nilearn.plotting import plot_stat_map, show
 
 for classifier_name, classifier in sorted(classifiers.items()):
     classifier.fit(masked_timecourses, stimuli)
@@ -158,4 +168,4 @@ for classifier_name, classifier in sorted(classifiers.items()):
                   threshold=threshold,
                   title='%s: face vs house' % classifier_name)
 
-plt.show()
+show()

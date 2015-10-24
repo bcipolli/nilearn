@@ -1,3 +1,85 @@
+0.1.5
+=======
+
+Changelog
+---------
+
+The new minimum required version of scikit-learn is 0.13
+
+- Fix to control the behaviour of cut_coords or number of cuts in plot_stat_map.
+  For consistency, number of cuts is changed to default value 7.
+
+
+0.1.4
+=====
+
+Changelog
+---------
+
+Highlights:
+
+- NiftiSpheresMasker: extract signals from balls specified by their
+  coordinates
+- Obey Debian packaging rules
+- Add the Destrieux 2009 and Power 2011 atlas
+- Better caching in maskers
+
+
+Contributors (from ``git shortlog -ns 0.1.3..0.1.4``)::
+
+   141  Alexandre Abraham
+    15  Gael Varoquaux
+    10  Loïc Estève
+     2  Arthur Mensch
+     2  Danilo Bzdok
+     2  Michael Hanke
+     1  Mehdi Rahim
+
+
+0.1.3
+=====
+
+Changelog
+---------
+
+The 0.1.3 release is a bugfix release that fixes a lot of minor bugs. It
+also includes a full rewamp of the documentation, and support for Python
+3.
+
+Minimum version of supported packages are now:
+
+- numpy 1.6.1
+- scipy 0.9.0
+- scikit-learn 0.12.1
+- Matplotlib 1.1.1 (optional)
+
+A non exhaustive list of issues fixed:
+
+- Dealing with NaNs in plot_connectome
+- Fix extreme values in colorbar were sometimes brok
+- Fix confounds removal with single confounds
+- Fix frequency filtering
+- Keep header information in images
+- add_overlay finds vmin and vmax automatically
+- vmin and vmax support in plot_connectome
+- detrending 3D images no longer puts them to zero
+
+
+Contributors (from ``git shortlog -ns 0.1.2..0.1.3``)::
+
+   129  Alexandre Abraham
+    67  Loïc Estève
+    57  Gael Varoquaux
+    44  Ben Cipollini
+    37  Danilo Bzdok
+    20  Elvis Dohmatob
+    14  Óscar Nájera
+     9  Salma BOUGACHA
+     8  Alexandre Gramfort
+     7  Kamalakar Daddy
+     3  Demian Wassermann
+     1  Bertrand Thirion
+
 0.1.2
 =====
 
