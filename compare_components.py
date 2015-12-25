@@ -2,26 +2,14 @@
 # Author: Ben Cipollini, Ami Tsuchida
 # License: BSD
 
-import nibabel as nib
+import os.path as op
+
 import numpy as np
 from matplotlib import pyplot as plt
-from nilearn.image import iter_img, index_img, new_img_like
+from nilearn.image import iter_img, index_img
 from nilearn.plotting import plot_stat_map
-from six import string_types
 
-
-def load_if_needed(img):
-    if isinstance(img, string_types):
-        img = nib.load(img)
-    return img
-
-
-def flip_img_lr(img):
-    img = load_if_needed(img)
-    # This won't work for all image formats! But
-    # does work for those that we're working with...
-    assert isinstance(img, nib.nifti1.Nifti1Image)
-    return new_img_like(img, data=img.get_data()[::-1])
+from hemisphere_masker import MniHemisphereMasker, load_if_needed
 
 
 def compare_components(images, labels):
@@ -60,10 +48,36 @@ def compare_components(images, labels):
     plt.show()
 
 
+def get_and_normalize_image(key, nii_dir=op.join('ica_nii', '20')):
+    if key.lower() == 'l':
+        lbl = 'L (rev)'
+        img = flip_img_lr(op.join(nii_dir, 'L_ica_components.nii.gz'))
+    elif key.lower() in ('r', 'test'):
+        lbl = 'R'
+        img = op.join(nii_dir, 'R_ica_components.nii.gz')
+    elif key.lower() == 'both-r':
+        lbl = 'both'
+        img = MniHemisphereMasker(hemisphere='R').mask_as_img(
+            op.join(nii_dir, 'both_ica_components.nii.gz'))
+    elif key.lower() == 'both-l':
+        lbl = 'both'
+        img = MniHemisphereMasker(hemisphere='L').mask_as_img(
+            op.join(nii_dir, 'both_ica_components.nii.gz'))
+    else:
+        raise ValueError("Unknown key: %s" % key)
+
+    return lbl, img
+
+
 if __name__ == '__main__':
     import os.path as op
+    import sys
+    from hemisphere_masker import flip_img_lr
 
-    nii_dir = op.join('ica_nii', '20')
-    img1 = op.join(nii_dir, 'R_ica_components.nii.gz')
-    img2 = flip_img_lr(op.join(nii_dir, 'L_ica_components.nii.gz'))
-    compare_components(images=[img1, img2], labels=['R', 'L'])
+    # Select two images to compare
+    key1 = 'R' if len(sys.argv) < 2 else sys.argv[1]
+    key2 = 'L' if len(sys.argv) < 3 else sys.argv[2]
+
+    img1 = get_and_normalize_image(key1)[1]
+    img2 = get_and_normalize_image(key2)[1]
+    compare_components(images=[img1, img2], labels=[key1, key2])

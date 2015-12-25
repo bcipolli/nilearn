@@ -15,7 +15,7 @@ from nilearn.plotting import plot_stat_map
 from scipy import stats
 from sklearn.decomposition import FastICA
 
-from hemisphere_masker import HemisphereMasker
+from hemisphere_masker import MniHemisphereMasker
 
 
 def clean_img(img):
@@ -72,10 +72,10 @@ def generate_components(n_images=np.inf, n_components=20,
                                  memory='nilearn_cache')
 
         else:  # R and L maskers
-            masker = HemisphereMasker(mask_img=mask_img,
-                                      target_affine=target_img.affine,
-                                      target_shape=target_img.shape,
-                                      memory='nilearn_cache', hemisphere=hemi)
+            masker = MniHemisphereMasker(target_affine=target_img.affine,
+                                         target_shape=target_img.shape,
+                                         memory='nilearn_cache',
+                                         hemisphere=hemi)
         masker = masker.fit()
 
         # Images may fail to be transformed, and are of different shapes,
