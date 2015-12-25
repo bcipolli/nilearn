@@ -1,17 +1,6 @@
-"""
-NeuroVault cross-study ICA maps.
-================================
-
-This example shows how to download statistical maps from
-NeuroVault, label them with NeuroSynth terms,
-and compute ICA components across all the maps.
-
-See :func:`nilearn.datasets.fetch_neurovault` documentation for more details.
-"""
-# Author: Ben Cipollini
+# *- encoding: utf-8 -*-
+# Author: Ben Cipollini, Ami Tsuchida
 # License: BSD
-# Ported from code authored by Chris Filo Gorgolewski, Gael Varoquaux
-# https://github.com/NeuroVault/neurovault_analysis
 
 import os.path as op
 import warnings
