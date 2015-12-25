@@ -8,9 +8,14 @@ Submission to OHBM 2016 on functional lateralization using the neurovault datase
 
 Note: if using `virtualenv`, run: `fix-osx-virtualenv env/` (if `env/` is your virtual env root)
 
-### Generating the figures
+### Analyses
 
-Run `python generate_components.py`
+1. Generate the components and per-component figures
+```python generate_components.py```
+
+2. Compare components
+```python compare-components.py```
+
 
 ### Outputs
 
