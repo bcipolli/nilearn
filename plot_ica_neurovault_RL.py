@@ -60,76 +60,53 @@ target_img = datasets.load_mni152_template()
 grey_voxels = (target_img.get_data() > 0).astype(int)
 mask_img = new_img_like(target_img, grey_voxels)
 
-# Reshape & mask images #######################################################
-print("Reshaping and masking images; may take time.")
-masker = NiftiMasker(mask_img=mask_img, target_affine=target_img.affine,
-                     target_shape=target_img.shape, memory='nilearn_cache')
-masker = masker.fit()
+print("Running all analyses on both hemis together, and each separately.")
+for hemi in ['both', 'R', 'L']:
+    # Reshape & mask images ###################################################
+    print("%s: Reshaping and masking images; may take time." % hemi)
+    if hemi == 'both':
+        masker = NiftiMasker(mask_img=mask_img,
+                             target_affine=target_img.affine,
+                             target_shape=target_img.shape,
+                             memory='nilearn_cache')
 
-# R and L maskers
-r_masker = HemisphereMasker(mask_img=mask_img, target_affine=target_img.affine,
-                            target_shape=target_img.shape,
-                            memory='nilearn_cache', hemisphere='R')
-l_masker = HemisphereMasker(mask_img=mask_img, target_affine=target_img.affine,
-                            target_shape=target_img.shape,
-                            memory='nilearn_cache', hemisphere='L')
-r_masker = r_masker.fit()
-l_masker = l_masker.fit()
+    else:  # R and L maskers
+        masker = HemisphereMasker(mask_img=mask_img,
+                                  target_affine=target_img.affine,
+                                  target_shape=target_img.shape,
+                                  memory='nilearn_cache', hemisphere=hemi)
+    masker = masker.fit()
 
+    # Images may fail to be transformed, and are of different shapes,
+    # so we need to trasnform one-by-one and keep track of failures.
+    X = []
+    xformable_idx = np.ones((len(images),), dtype=bool)
+    for ii, im in enumerate(images):
+        img = cast_img(im['local_path'], dtype=np.float32)
+        img = clean_img(img)
+        try:
+            X.append(masker.transform(img))
+        except Exception as e:
+            print("Failed to mask/reshape image %d/%s: %s" % (
+                im.get('collection_id', 0), op.basename(im['local_path']), e))
+            xformable_idx[ii] = False
 
-# Images may fail to be transformed, and are of different shapes,
-# so we need to trasnform one-by-one and keep track of failures.
-X, r_X, l_X = [], [], []
-xformable_idx = np.ones((len(images),), dtype=bool)
-for ii, im in enumerate(images):
-    img = cast_img(im['local_path'], dtype=np.float32)
-    img = clean_img(img)
-    try:
-        X.append(masker.transform(img))
-        r_X.append(r_masker.transform(img))
-        l_X.append(l_masker.transform(img))
-    except Exception as e:
-        print("Failed to mask/reshape image %d/%s: %s" % (
-            im.get('collection_id', 0), op.basename(im['local_path']), e))
-        xformable_idx[ii] = False
+    # Now reshape list into 2D matrix, and remove failed images from terms
+    X = np.vstack(X)
+    term_matrix = term_matrix[:, xformable_idx]
 
-# Now reshape list into 2D matrix, and remove failed images from terms
-X = np.vstack(X)
-term_matrix = term_matrix[:, xformable_idx]
+    # Run ICA and map components to terms #####################################
+    print("%s: Running ICA; may take time..." % hemi)
+    fast_ica = FastICA(n_components=20, random_state=42)
+    ica_maps = fast_ica.fit_transform(X.T).T
 
-# Reshape R and L masked lists to matrices
-r_X, l_X = np.vstack(r_X), np.vstack(l_X)
+    # Don't use the transform method as it centers the data
+    ica_terms = np.dot(term_matrix, fast_ica.components_.T).T
 
-# Run ICA and map components to terms #########################################
-print("Running ICA; may take time...")
-fast_ica = FastICA(n_components=20, random_state=42)
-ica_maps = fast_ica.fit_transform(X.T).T
+    # Generate figures ########################################################
+    print("%s: Generating figures." % hemi)
 
-# Don't use the transform method as it centers the data
-ica_terms = np.dot(term_matrix, fast_ica.components_.T).T
-
-# Repeat ICA for R and L hemispheres
-r_fast_ica = FastICA(n_components=20, random_state=42)
-r_ica_maps = r_fast_ica.fit_transform(r_X.T).T
-
-l_fast_ica = FastICA(n_components=20, random_state=42)
-l_ica_maps = l_fast_ica.fit_transform(l_X.T).T
-
-# Create separate terms for R and L
-r_ica_terms = np.dot(term_matrix, r_fast_ica.components_.T).T
-l_ica_terms = np.dot(term_matrix, l_fast_ica.components_.T).T
-
-
-# Generate figures ############################################################
-print("Generating figures.")
-
-hemi_dict = {"both": [ica_maps, ica_terms, masker],
-             "R": [r_ica_maps, r_ica_terms, r_masker],
-             "L": [l_ica_maps, l_ica_terms, l_masker]}
-for hemi in hemi_dict:
-
-    hemi_masker = hemi_dict[hemi][2]
-    ica_images = hemi_masker.inverse_transform(hemi_dict[hemi][0])
+    ica_images = masker.inverse_transform(ica_maps)
 
     # Write to disk
     out_path = op.join('ica_nii', '%s_ica_components.nii.gz' % hemi)
@@ -137,15 +114,14 @@ for hemi in hemi_dict:
         os.makedirs(op.dirname(out_path))
     ica_images.to_filename(out_path)
 
-    for idx, (ic, ic_terms) in enumerate(zip(hemi_dict[hemi][0],
-                                             hemi_dict[hemi][1])):
+    for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
         if -ic.min() > ic.max():
             # Flip the map's sign for prettiness
             ic = -ic
             ic_terms = -ic_terms
 
         ic_thr = stats.scoreatpercentile(np.abs(ic), 90)
-        ic_img = hemi_masker.inverse_transform(ic)
+        ic_img = masker.inverse_transform(ic)
         display = plot_stat_map(ic_img, threshold=ic_thr, colorbar=False,
                                 bg_img=target_img)
 
