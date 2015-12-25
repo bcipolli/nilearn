@@ -2,9 +2,9 @@
 # Author: Ben Cipollini, Ami Tsuchida
 # License: BSD
 
+import os
 import os.path as op
 import warnings
-warnings.simplefilter('error', RuntimeWarning)  # Catch numeric issues in imgs
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -15,6 +15,8 @@ from nilearn._utils import check_niimg
 from nilearn.plotting import plot_stat_map
 from scipy import stats
 from sklearn.decomposition import FastICA
+warnings.simplefilter('ignore', DeprecationWarning)
+warnings.simplefilter('error', RuntimeWarning)  # Catch numeric issues in imgs
 
 from hemisphere_masker import HemisphereMasker
 
@@ -37,7 +39,7 @@ def cast_img(img, dtype=np.float32):
 
 # Get image and term data #####################################################
 # Download 100 matching images
-ss_all = datasets.fetch_neurovault(max_images=100,  # Use np.inf for all imgs.
+ss_all = datasets.fetch_neurovault(max_images=np.inf,  # Use np.inf for all.
                                    map_types=['F map', 'T map', 'Z map'],
                                    fetch_terms=True)
 images, collections = ss_all['images'], ss_all['collections']
@@ -59,7 +61,7 @@ grey_voxels = (target_img.get_data() > 0).astype(int)
 mask_img = new_img_like(target_img, grey_voxels)
 
 # Reshape & mask images #######################################################
-print("Reshaping and masking images.")
+print("Reshaping and masking images; may take time.")
 masker = NiftiMasker(mask_img=mask_img, target_affine=target_img.affine,
                      target_shape=target_img.shape, memory='nilearn_cache')
 masker = masker.fit()
@@ -119,16 +121,21 @@ l_ica_terms = np.dot(term_matrix, l_fast_ica.components_.T).T
 
 
 # Generate figures ############################################################
+print("Generating figures.")
 
 hemi_dict = {"both": [ica_maps, ica_terms, masker],
              "R": [r_ica_maps, r_ica_terms, r_masker],
              "L": [l_ica_maps, l_ica_terms, l_masker]}
-
 for hemi in hemi_dict:
 
     hemi_masker = hemi_dict[hemi][2]
     ica_images = hemi_masker.inverse_transform(hemi_dict[hemi][0])
-    ica_images.to_filename('ica_neurovault_RL/%s_ica_components.nii.gz' % hemi)
+
+    # Write to disk
+    out_path = op.join('ica_nii', '%s_ica_components.nii.gz' % hemi)
+    if not op.exists(op.dirname(out_path)):
+        os.makedirs(op.dirname(out_path))
+    ica_images.to_filename(out_path)
 
     for idx, (ic, ic_terms) in enumerate(zip(hemi_dict[hemi][0],
                                              hemi_dict[hemi][1])):
@@ -148,6 +155,8 @@ for hemi in hemi_dict:
         display.title(title, size=16)
 
         # Save images instead of displaying
-        plt.savefig('ica_neurovault_RL/ica_maps/%s_component_%i.png' % (
-            hemi, idx))
+        out_path = op.join('ica_maps', '%s_component_%i.png' % (hemi, idx))
+        if not op.exists(op.dirname(out_path)):
+            os.makedirs(op.dirname(out_path))
+        plt.savefig(out_path)
         plt.close()
