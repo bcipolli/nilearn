@@ -10,7 +10,7 @@ Note: if using `virtualenv`, run: `fix-osx-virtualenv env/` (if `env/` is your v
 
 ### Generating the figures
 
-Run `python plot_ica_neurovault_RL.py`
+Run `python generate_components.py`
 
 ### Outputs
 
