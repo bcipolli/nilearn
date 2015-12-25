@@ -19,16 +19,15 @@ warnings.simplefilter('error', RuntimeWarning)  # Catch numeric issues in imgs
 
 import numpy as np
 from matplotlib import pyplot as plt
+from nilearn import datasets
+from nilearn.image import new_img_like
+from nilearn.input_data import NiftiMasker
+from nilearn._utils import check_niimg
+from nilearn.plotting import plot_stat_map
 from scipy import stats
 from sklearn.decomposition import FastICA
 
-from nilearn import datasets
-from nilearn.datasets.utils import _fetch_files, _get_dataset_dir
-from nilearn.image import new_img_like, resample_img, 
-from nilearn.input_data import NiftiMasker
-from nilearn.input_data.hemisphere_masker import HemisphereMasker
-from nilearn._utils import check_niimg
-from nilearn.plotting import plot_stat_map
+from hemisphere_masker import HemisphereMasker
 
 
 def clean_img(img):
@@ -39,13 +38,15 @@ def clean_img(img):
     img_data[np.isinf(img_data)] = 0
     return new_img_like(img, img_data)
 
+
 def cast_img(img, dtype=np.float32):
     """ Cast image to the specified dtype"""
     img = check_niimg(img)
     img_data = img.get_data().astype(dtype)
     return new_img_like(img, img_data)
 
-### Get image and term data ###################################################
+
+# Get image and term data #####################################################
 # Download 100 matching images
 ss_all = datasets.fetch_neurovault(max_images=100,  # Use np.inf for all imgs.
                                    map_types=['F map', 'T map', 'Z map'],
@@ -68,7 +69,7 @@ target_img = datasets.load_mni152_template()
 grey_voxels = (target_img.get_data() > 0).astype(int)
 mask_img = new_img_like(target_img, grey_voxels)
 
-### Reshape & mask images #####################################################
+# Reshape & mask images #######################################################
 print("Reshaping and masking images.")
 masker = NiftiMasker(mask_img=mask_img, target_affine=target_img.affine,
                      target_shape=target_img.shape, memory='nilearn_cache')
@@ -76,11 +77,11 @@ masker = masker.fit()
 
 # R and L maskers
 r_masker = HemisphereMasker(mask_img=mask_img, target_affine=target_img.affine,
-                           target_shape=target_img.shape, memory='nilearn_cache',
-                           hemisphere = 'R')
+                            target_shape=target_img.shape,
+                            memory='nilearn_cache', hemisphere='R')
 l_masker = HemisphereMasker(mask_img=mask_img, target_affine=target_img.affine,
-                           target_shape=target_img.shape, memory='nilearn_cache',
-                           hemisphere = 'L')
+                            target_shape=target_img.shape,
+                            memory='nilearn_cache', hemisphere='L')
 r_masker = r_masker.fit()
 l_masker = l_masker.fit()
 
@@ -108,7 +109,7 @@ term_matrix = term_matrix[:, xformable_idx]
 # Reshape R and L masked lists to matrices
 r_X, l_X = np.vstack(r_X), np.vstack(l_X)
 
-### Run ICA and map components to terms #######################################
+# Run ICA and map components to terms #########################################
 print("Running ICA; may take time...")
 fast_ica = FastICA(n_components=20, random_state=42)
 ica_maps = fast_ica.fit_transform(X.T).T
@@ -128,19 +129,20 @@ r_ica_terms = np.dot(term_matrix, r_fast_ica.components_.T).T
 l_ica_terms = np.dot(term_matrix, l_fast_ica.components_.T).T
 
 
-### Generate figures ##########################################################
+# Generate figures ############################################################
 
-hemi_dict = {"both":[ica_maps, ica_terms, masker],
-            "R":[r_ica_maps, r_ica_terms, r_masker],
-            "L":[l_ica_maps, l_ica_terms, l_masker]}
-            
-for hemi in ["both","R","L"]:
-    
+hemi_dict = {"both": [ica_maps, ica_terms, masker],
+             "R": [r_ica_maps, r_ica_terms, r_masker],
+             "L": [l_ica_maps, l_ica_terms, l_masker]}
+
+for hemi in hemi_dict:
+
     hemi_masker = hemi_dict[hemi][2]
-    ica_images = hemi_masker.inverse_transform(hemi_dict[hemi][0]) 
-    ica_images.to_filename('ica_neurovault_RL/%s_ica_components.nii.gz'% hemi)
-            
-    for idx, (ic, ic_terms) in enumerate(zip(hemi_dict[hemi][0], hemi_dict[hemi][1])):
+    ica_images = hemi_masker.inverse_transform(hemi_dict[hemi][0])
+    ica_images.to_filename('ica_neurovault_RL/%s_ica_components.nii.gz' % hemi)
+
+    for idx, (ic, ic_terms) in enumerate(zip(hemi_dict[hemi][0],
+                                             hemi_dict[hemi][1])):
         if -ic.min() > ic.max():
             # Flip the map's sign for prettiness
             ic = -ic
@@ -149,15 +151,14 @@ for hemi in ["both","R","L"]:
         ic_thr = stats.scoreatpercentile(np.abs(ic), 90)
         ic_img = hemi_masker.inverse_transform(ic)
         display = plot_stat_map(ic_img, threshold=ic_thr, colorbar=False,
-                            bg_img=target_img)
+                                bg_img=target_img)
 
         # Use the 4 terms weighted most as a title
         important_terms = terms[np.argsort(ic_terms)[-4:]]
         title = '%d: %s' % (idx, ', '.join(important_terms[::-1]))
         display.title(title, size=16)
-        
+
         # Save images instead of displaying
-        plt.savefig('ica_neurovault_RL/ica_maps/%s_component_%i.png'%(hemi, idx))
+        plt.savefig('ica_neurovault_RL/ica_maps/%s_component_%i.png' % (
+            hemi, idx))
         plt.close()
-
-
