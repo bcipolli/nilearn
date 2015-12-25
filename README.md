@@ -5,5 +5,9 @@ Submission to OHBM 2016 on functional lateralization using the neurovault datase
 
 1. clone this repository
 2. `pip install -r requirements.txt`
-3. If running using `virtualenv`, run: `fix-osx-virtualenv env/`
-4.
+
+Note: if using `virtualenv`, run: `fix-osx-virtualenv env/` (if `env/` is your virtual env root)
+
+### Generating the figures
+
+Run `python plot_ica_neurovault_RL.py`
