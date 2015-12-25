@@ -8,6 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from nilearn.image import iter_img, index_img
 from nilearn.plotting import plot_stat_map
+from six.moves import cPickle
 
 from hemisphere_masker import MniHemisphereMasker, load_if_needed
 
@@ -43,8 +44,19 @@ def compare_components(images, labels):
         for ii in [0, 1]:  # image index
             ax = fh.add_subplot(2, 1, ii + 1)
             comp = index_img(images[ii], cis[ii])
-            plot_stat_map(comp, axes=ax,
-                          title='%s[%d]' % (labels[ii], cis[ii]))
+
+            # Use the 4 terms weighted most as a title
+            terms_dict = cPickle.loads(
+                images[ii].header.extensions[0].get_content())
+            terms, ic_terms = terms_dict.keys(), terms_dict.values()
+
+            terms = images[ii].extra['ica_terms'].keys()
+            ic_terms = images[ii].extra['ica_terms'].values()
+            important_terms = terms[np.argsort(ic_terms)[-4:]]
+            title = '%s[%d]: %s' % (
+                labels[ii], cis[ii], ', '.join(important_terms[::-1]))
+
+            plot_stat_map(comp, axes=ax, title=title)
     plt.show()
 
 
