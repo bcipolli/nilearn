@@ -4,24 +4,26 @@ what looks good and what looks like crap.
 """
 
 import os.path as op
+import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
-from nilearn import datasets
 from nilearn.plotting import plot_stat_map
 from sklearn.externals.joblib import Memory
 
+from nilearn_ext.datasets import fetch_neurovault
 from nilearn_ext.image import clean_img, cast_img
 from nilearn_ext.masking import MniNiftiMasker
 from nilearn_ext.plotting import save_and_close
 
 # Download matching images
-ss_all = datasets.fetch_neurovault(max_images=np.inf,
-                                   map_types=['F map', 'T map', 'Z map'],
-                                   query_server=False,
-                                   fetch_terms=False)
-images = ss_all['images']
+images = fetch_neurovault(fetch_terms=False, query_server=True)[0]
+plot_dir = 'qc'
+
+# Get ready
 masker = MniNiftiMasker(memory=Memory(cachedir='nilearn_cache')).fit()
+if op.exists(plot_dir):  # Delete old plots.
+    shutil.rmtree(plot_dir)
 
 for ii, image in enumerate(images):
     ri = ii % 4  # row i

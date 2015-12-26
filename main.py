@@ -11,7 +11,7 @@ from nilearn import datasets
 from nilearn.image import index_img, iter_img
 
 from nibabel_ext import NiftiImageWithTerms
-from nilearn_ext.datasets import fetch_neurovault_images_and_terms
+from nilearn_ext.datasets import fetch_neurovault
 from nilearn_ext.decomposition import compare_components, generate_components
 from nilearn_ext.masking import join_bilateral_rois
 from nilearn_ext.plotting import (plot_comparisons, plot_components,
@@ -65,7 +65,7 @@ def mix_and_match_bilateral_components(**kwargs):
     return img
 
 
-def main(dataset, keys=('R', 'L'), n_components=20, n_images=np.inf,
+def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
          scoring='l1norm', query_server=True,
          force=False, img_dir=None, plot_dir=None):
     this_dir = op.join(dataset, '%s-%dics' % (scoring, n_components))
@@ -74,10 +74,10 @@ def main(dataset, keys=('R', 'L'), n_components=20, n_images=np.inf,
 
     # Download
     if dataset == 'neurovault':
-        images, term_scores = fetch_neurovault_images_and_terms(
-            n_images=n_images, query_server=query_server)
+        images, term_scores = fetch_neurovault(
+            max_images=max_images, query_server=query_server)
     elif dataset == 'abide':
-        images = datasets.fetch_abide_pcp(n_subjects=n_images)
+        images = datasets.fetch_abide_pcp(n_subjects=max_images)
         term_scores = None
 
     # Analyze images
