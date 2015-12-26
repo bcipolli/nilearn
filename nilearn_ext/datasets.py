@@ -9,7 +9,7 @@ from nilearn import datasets
 def fetch_neurovault_images_and_terms(n_images=np.inf, query_server=True):
     # Get image and term data
 
-    # Download 100 matching images
+    # Download matching images
     ss_all = datasets.fetch_neurovault(max_images=n_images,
                                        map_types=['F map', 'T map', 'Z map'],
                                        query_server=query_server,

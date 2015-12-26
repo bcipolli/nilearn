@@ -14,18 +14,22 @@ from nibabel_ext import NiftiImageWithTerms
 from nilearn_ext.datasets import fetch_neurovault_images_and_terms
 from nilearn_ext.decomposition import compare_components, generate_components
 from nilearn_ext.masking import join_bilateral_rois
-from nilearn_ext.plotting import plot_comparisons, plot_components
+from nilearn_ext.plotting import (plot_comparisons, plot_components,
+                                  save_and_close)
+from nilearn_ext.utils import reorder_mat
 
 
-def load_or_generate_components(hemi, out_dir='.', *args, **kwargs):
+def load_or_generate_components(hemi, out_dir='.', plot_dir=None,
+                                *args, **kwargs):
     # Only re-run if image doesn't exist.
     img_path = op.join(out_dir, '%s_ica_components.nii.gz' % hemi)
     if not kwargs.get('force') and op.exists(img_path):
-        return NiftiImageWithTerms.from_filename(img_path)
+        img = NiftiImageWithTerms.from_filename(img_path)
 
     else:
         img = generate_components(hemi=hemi, out_dir=out_dir, *args, **kwargs)
-        plot_components(img, hemi=hemi, out_dir=kwargs.get('plot_dir'))
+        plot_components(img, hemi=hemi, out_dir=plot_dir)
+    return img
 
 
 def mix_and_match_bilateral_components(**kwargs):
@@ -62,8 +66,9 @@ def mix_and_match_bilateral_components(**kwargs):
 
 
 def main(dataset, keys=('R', 'L'), n_components=20, n_images=np.inf,
+         scoring='l1norm',
          force=False, img_dir=None, plot_dir=None):
-    this_dir = op.join(str(n_components), dataset)
+    this_dir = op.join(dataset, '%s-%dics' % (scoring, n_components))
     img_dir = img_dir or op.join('ica_nii', this_dir)
     plot_dir = plot_dir or op.join('ica_imgs', this_dir)
 
@@ -75,17 +80,26 @@ def main(dataset, keys=('R', 'L'), n_components=20, n_images=np.inf,
         images = datasets.fetch_abide_pcp(n_subjects=n_images)
         term_scores = None
 
-    # Analyze
+    # Analyze images
     print("Running all analyses on both hemis together, and each separately.")
     imgs = dict()
+    kwargs = dict(images=images, term_scores=term_scores,
+                  n_components=n_components,
+                  out_dir=img_dir, plot_dir=plot_dir)
     for key in keys:
-        kwargs = dict(images=images, term_scores=term_scores,
-                      n_components=n_components, out_dir=img_dir)
+        if key.lower() in ('rl', 'lr'):
+            imgs[key] = mix_and_match_bilateral_components(**kwargs)
+        else:
+            imgs[key] = load_or_generate_components(hemi=key, **kwargs)
 
-        imgs[key] = load_or_generate_components(hemi=key, **kwargs)
+    # Show confusion matrix
+    score_mat = compare_components(images=imgs.values(), labels=imgs.keys(),
+                                   scoring=scoring)
+    fh = plt.figure(figsize=(10, 10))
+    fh.gca().matshow(reorder_mat(score_mat))
+    save_and_close(out_path=op.join(plot_dir, '%s_%s_simmat.png' % keys))
 
     # Get the requested images
-    score_mat = compare_components(images=imgs.values(), labels=imgs.keys())
     plot_comparisons(images=imgs.values(), labels=imgs.keys(),
                      score_mat=score_mat, out_dir=plot_dir)
 
@@ -103,5 +117,6 @@ if __name__ == '__main__':
 
     # Settings
     n_components = 20
-    main(dataset='neurovault', keys=(key1, key2), n_components=n_components)
+    main(dataset='neurovault', keys=(key1, key2), n_components=n_components,
+         scoring='correlation')
     plt.show()
