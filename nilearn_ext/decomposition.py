@@ -7,14 +7,13 @@ import os.path as op
 
 import numpy as np
 from nilearn import datasets
-from nilearn.image import new_img_like, iter_img
-from nilearn.input_data import NiftiMasker
+from nilearn.image import iter_img
 from sklearn.decomposition import FastICA
 from sklearn.externals.joblib import Memory
 
 from nibabel_ext import NiftiImageWithTerms
-from .masking import MniHemisphereMasker
-from .utils import cast_img, clean_img
+from .image import cast_img, clean_img
+from .masking import MniHemisphereMasker, flip_img_lr, MniNiftiMasker
 
 
 def generate_components(images, term_scores, hemi,
@@ -26,16 +25,13 @@ def generate_components(images, term_scores, hemi,
 
     # Create grey matter mask from mni template
     target_img = datasets.load_mni152_template()
-    grey_voxels = (target_img.get_data() > 0).astype(int)
-    mask_img = new_img_like(target_img, grey_voxels, copy_header=True)
 
     # Reshape & mask images
     print("%s: Reshaping and masking images; may take time." % hemi)
     if hemi == 'both':
-        masker = NiftiMasker(mask_img=mask_img,
-                             target_affine=target_img.affine,
-                             target_shape=target_img.shape,
-                             memory=memory)
+        masker = MniNiftiMasker(target_affine=target_img.affine,
+                                target_shape=target_img.shape,
+                                memory=memory)
 
     else:  # R and L maskers
         masker = MniHemisphereMasker(target_affine=target_img.affine,
