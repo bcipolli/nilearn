@@ -9,9 +9,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 from nilearn import datasets
 from nilearn.image import iter_img, index_img, new_img_like
-# from nilearn.input_data import NiftiMasker
 from nilearn.plotting import plot_stat_map
 from scipy import stats
+
+from nilearn_ext.utils import reorder_mat
 
 
 def save_and_close(out_path, fh=None):
@@ -51,7 +52,7 @@ def plot_components(ica_image, hemi='', out_dir=None,
                 out_dir, '%s_component_%i.png' % (hemi, ci)))
 
 
-def plot_comparisons(images, labels, score_mat, out_dir=None):
+def plot_component_comparisons(images, labels, score_mat, out_dir=None):
     """ Uses the score_mat to find the closest components of each
     image, then plots them side-by-side with equal colorbars.
     """
@@ -107,3 +108,22 @@ def plot_comparisons(images, labels, score_mat, out_dir=None):
         if out_dir is not None:
             save_and_close(out_path=op.join(
                 out_dir, '%s_%s_%s.png' % (labels[0], labels[1], c1i)), fh=fh)
+
+
+def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
+                           keys=('R', 'L'), vmax=None, colorbar=True):
+
+    # Settings
+    vmax = vmax or 10
+    vmin = 1 if normalize else 0
+    score_mat = reorder_mat(score_mat) if normalize else score_mat
+
+    # Plotting
+    fh = plt.figure(figsize=(10, 10))
+    cax = fh.gca().matshow(score_mat, vmin=vmin, vmax=vmax)
+    if colorbar:
+        fh.colorbar(cax)
+
+    # Saving
+    if out_dir is not None:
+        save_and_close(out_path=op.join(out_dir, '%s_%s_simmat.png' % keys))

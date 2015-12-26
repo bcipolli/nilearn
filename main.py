@@ -14,9 +14,8 @@ from nibabel_ext import NiftiImageWithTerms
 from nilearn_ext.datasets import fetch_neurovault
 from nilearn_ext.decomposition import compare_components, generate_components
 from nilearn_ext.masking import join_bilateral_rois
-from nilearn_ext.plotting import (plot_comparisons, plot_components,
-                                  save_and_close)
-from nilearn_ext.utils import reorder_mat
+from nilearn_ext.plotting import (plot_component_comparisons, plot_components,
+                                  plot_comparison_matrix)
 
 
 def load_or_generate_components(hemi, out_dir='.', plot_dir=None,
@@ -95,13 +94,12 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
     # Show confusion matrix
     score_mat = compare_components(images=imgs.values(), labels=imgs.keys(),
                                    scoring=scoring)
-    fh = plt.figure(figsize=(10, 10))
-    fh.gca().matshow(reorder_mat(score_mat))
-    save_and_close(out_path=op.join(plot_dir, '%s_%s_simmat.png' % keys))
+    plot_comparison_matrix(score_mat, scoring=scoring, normalize=True,
+                           out_dir=plot_dir, keys=keys)
 
     # Get the requested images
-    plot_comparisons(images=imgs.values(), labels=imgs.keys(),
-                     score_mat=score_mat, out_dir=plot_dir)
+    plot_component_comparisons(images=imgs.values(), labels=imgs.keys(),
+                               score_mat=score_mat, out_dir=plot_dir)
 
 
 if __name__ == '__main__':
