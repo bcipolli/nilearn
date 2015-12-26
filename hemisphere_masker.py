@@ -3,26 +3,15 @@ n_jobs = 1
 
 import numpy as np
 
-import matplotlib.pyplot as plt
 import nibabel as nib
 from nilearn import datasets
 from nilearn.image import iter_img, reorder_img, new_img_like
 from nilearn.input_data import NiftiMasker
-from nilearn.plotting import plot_stat_map
-from six import string_types
 from sklearn.externals.joblib import Memory
-
-
-def load_if_needed(img):
-    """Convenience function to load image if a string path"""
-    if isinstance(img, string_types):
-        img = nib.load(img)
-    return img
 
 
 def flip_img_lr(img):
     """ Convenience function to flip image on X axis"""
-    img = load_if_needed(img)
     # This won't work for all image formats! But
     # does work for those that we're working with...
     assert isinstance(img, nib.nifti1.Nifti1Image)
@@ -30,15 +19,13 @@ def flip_img_lr(img):
     return img
 
 
-def split_bilateral_rois(maps_img, show_results=False):
+def split_bilateral_rois(maps_img):
     """Convenience function for splitting bilateral ROIs
     into two unilateral ROIs"""
 
     new_rois = []
 
     for map_img in iter_img(maps_img):
-        if show_results:
-            plot_stat_map(map_img, title='raw')
         for hemi in ['L', 'R']:
             hemi_mask = HemisphereMasker(hemisphere=hemi)
             hemi_mask.fit(map_img)
@@ -46,15 +33,20 @@ def split_bilateral_rois(maps_img, show_results=False):
                 hemi_vectors = hemi_mask.transform(map_img)
                 hemi_img = hemi_mask.inverse_transform(hemi_vectors)
                 new_rois.append(hemi_img.get_data())
-                if show_results:
-                    plot_stat_map(hemi_img, title=hemi)
-        if show_results:
-            plt.show()
+
     new_maps_data = np.concatenate(new_rois, axis=3)
-    new_maps_img = new_img_like(maps_img, data=new_maps_data)
-    print ("Changed from %d ROIs to %d ROIs" % (maps_img.shape[-1],
-                                                new_maps_img.shape[-1]))
+    new_maps_img = new_img_like(maps_img, data=new_maps_data, copy_header=True)
+    print("Changed from %d ROIs to %d ROIs" % (maps_img.shape[-1],
+                                               new_maps_img.shape[-1]))
     return new_maps_img
+
+
+def join_bilateral_rois(R_img, L_img):  # noqa
+    """Convenience function for splitting bilateral ROIs
+    into two unilateral ROIs"""
+
+    joined_data = R_img.get_data() + L_img.get_data()
+    return new_img_like(R_img, data=joined_data)
 
 
 class HemisphereMasker(NiftiMasker):

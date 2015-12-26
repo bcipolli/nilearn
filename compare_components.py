@@ -2,8 +2,6 @@
 # Author: Ben Cipollini, Ami Tsuchida
 # License: BSD
 
-import os.path as op
-
 import numpy as np
 from matplotlib import pyplot as plt
 from nilearn.image import iter_img, index_img
@@ -17,7 +15,6 @@ def compare_components(images, labels):
     assert len(labels) == 2
 
     print("Loading images.")
-    images = [load_if_needed(img) for img in images]
     data = [img.get_data() for img in images]
     del data
 
@@ -71,15 +68,3 @@ def prep_image_for_comparison(key, img=None):
         raise ValueError("Unknown key: %s" % key)
 
     return img
-if __name__ == '__main__':
-    import os.path as op
-    import sys
-    from hemisphere_masker import flip_img_lr
-
-    # Select two images to compare
-    key1 = 'R' if len(sys.argv) < 2 else sys.argv[1]
-    key2 = 'L' if len(sys.argv) < 3 else sys.argv[2]
-
-    img1 = get_and_normalize_image(key1)[1]
-    img2 = get_and_normalize_image(key2)[1]
-    compare_components(images=[img1, img2], labels=[key1, key2])

@@ -10,11 +10,10 @@ Note: if using `virtualenv`, run: `fix-osx-virtualenv env/` (if `env/` is your v
 
 ### Analyses
 
-1. Generate the components and per-component figures
-```python generate_components.py```
+Run `python main.py`. This calls:
 
-2. Compare components
-```python compare-components.py```
+* `generate_components.py` - Generate the components and per-component figures
+* `compare_components.py` - Match up ICA components
 
 
 ### Outputs
