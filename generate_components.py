@@ -5,7 +5,6 @@
 import os
 import os.path as op
 
-import nibabel as nib
 import numpy as np
 from matplotlib import pyplot as plt
 from nilearn import datasets
@@ -14,11 +13,11 @@ from nilearn.input_data import NiftiMasker
 from nilearn._utils import check_niimg
 from nilearn.plotting import plot_stat_map
 from scipy import stats
-from six.moves import cPickle
 from sklearn.decomposition import FastICA
 from sklearn.externals.joblib import Memory
 
 from hemisphere_masker import MniHemisphereMasker
+from nifti_with_terms import NiftiImageWithTerms
 
 
 def clean_img(img):
@@ -27,14 +26,14 @@ def clean_img(img):
     img_data = img.get_data()
     img_data[np.isnan(img_data)] = 0
     img_data[np.isinf(img_data)] = 0
-    return new_img_like(img, img_data)
+    return new_img_like(img, img_data, copy_header=True)
 
 
 def cast_img(img, dtype=np.float32):
     """ Cast image to the specified dtype"""
     img = check_niimg(img)
     img_data = img.get_data().astype(dtype)
-    return new_img_like(img, img_data)
+    return new_img_like(img, img_data, copy_header=True)
 
 
 def download_images_and_terms(n_images=np.inf):
@@ -70,7 +69,7 @@ def generate_components(images, term_scores, hemi,
     # Create grey matter mask from mni template
     target_img = datasets.load_mni152_template()
     grey_voxels = (target_img.get_data() > 0).astype(int)
-    mask_img = new_img_like(target_img, grey_voxels)
+    mask_img = new_img_like(target_img, grey_voxels, copy_header=True)
 
     # Reshape & mask images
     print("%s: Reshaping and masking images; may take time." % hemi)
@@ -126,10 +125,9 @@ def generate_components(images, term_scores, hemi,
     print("%s: Generating figures." % hemi)
 
     # Create image from maps, save terms to the image directly
-    ica_image = masker.inverse_transform(ica_maps)
-    terms_dict = dict(zip(terms, ica_terms))
-    ica_image.header.extensions.append(
-        nib.nifti1.Nifti1Extension('pypickle', cPickle.dumps(terms_dict)))
+    ica_image = NiftiImageWithTerms.from_image(
+        masker.inverse_transform(ica_maps))
+    ica_image.terms = dict(zip(terms, ica_terms.T))
 
     # Write to disk
     if out_dir is not None:
@@ -141,9 +139,11 @@ def generate_components(images, term_scores, hemi,
     return ica_image
 
 
-def plot_components(ica_image, bg_img=None, out_dir=None):
-    terms_dict = cPickle.loads(ica_image.header.extensions[0].get_content())
-    terms, ica_terms = terms_dict.keys(), terms_dict.values()
+def plot_components(ica_image, hemi='', out_dir=None,
+                    bg_img=datasets.load_mni152_template()):
+    print("Plotting %s components..." % hemi)
+    terms = np.asarray(ica_image.terms.keys())
+    ica_terms = np.asarray(ica_image.terms.values()).T
 
     idx = 0
     for ic_img, ic_terms in zip(iter_img(ica_image), ica_terms):
@@ -180,10 +180,10 @@ if __name__ == '__main__':
 
     print("Running all analyses on both hemis together, and each separately.")
     for hemi in ['both', 'R', 'L']:
-        ica_img = generate_components(
-            images=images, term_scores=term_scores, hemi=hemi,
-            n_components=20, out_dir=img_dir,
-            memory=Memory(cachedir='nilearn_cache', verbose=10))
+        img_path = op.join(img_dir, '%s_ica_components.nii.gz' % hemi)
+        if not op.exists(img_path):
+            generate_components(images=images, hemi=hemi,
+                                n_components=20, out_dir=img_dir,
+                                memory=Memory(cachedir='nilearn_cache'))
 
-        ica_img = nib.load(op.join(img_dir, '%s_ica_components.nii.gz' % hemi))
-        plot_components(ica_img, out_dir=plot_dir)
+        plot_components(img_path)

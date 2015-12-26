@@ -8,9 +8,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from nilearn.image import iter_img, index_img
 from nilearn.plotting import plot_stat_map
-from six.moves import cPickle
 
-from hemisphere_masker import MniHemisphereMasker, load_if_needed
+from hemisphere_masker import (MniHemisphereMasker, flip_img_lr)
 
 
 def compare_components(images, labels):
@@ -46,12 +45,9 @@ def compare_components(images, labels):
             comp = index_img(images[ii], cis[ii])
 
             # Use the 4 terms weighted most as a title
-            terms_dict = cPickle.loads(
-                images[ii].header.extensions[0].get_content())
-            terms, ic_terms = terms_dict.keys(), terms_dict.values()
-
-            terms = images[ii].extra['ica_terms'].keys()
-            ic_terms = images[ii].extra['ica_terms'].values()
+            terms = np.asarray(images[ii].terms.keys())
+            ica_terms = np.asarray(images[ii].terms.values()).T
+            ic_terms = ica_terms[cis[ii]]
             important_terms = terms[np.argsort(ic_terms)[-4:]]
             title = '%s[%d]: %s' % (
                 labels[ii], cis[ii], ', '.join(important_terms[::-1]))
@@ -60,27 +56,21 @@ def compare_components(images, labels):
     plt.show()
 
 
-def get_and_normalize_image(key, nii_dir=op.join('ica_nii', '20')):
+def prep_image_for_comparison(key, img=None):
+
     if key.lower() == 'l':
-        lbl = 'L (rev)'
-        img = flip_img_lr(op.join(nii_dir, 'L_ica_components.nii.gz'))
+        img = flip_img_lr(img)
+
     elif key.lower() in ('r', 'test'):
-        lbl = 'R'
-        img = op.join(nii_dir, 'R_ica_components.nii.gz')
-    elif key.lower() == 'both-r':
-        lbl = 'both'
-        img = MniHemisphereMasker(hemisphere='R').mask_as_img(
-            op.join(nii_dir, 'both_ica_components.nii.gz'))
-    elif key.lower() == 'both-l':
-        lbl = 'both'
-        img = MniHemisphereMasker(hemisphere='L').mask_as_img(
-            op.join(nii_dir, 'both_ica_components.nii.gz'))
+        pass
+
+    elif key.lower() == 'both':
+        img = MniHemisphereMasker(hemisphere='R').mask_as_img(img)
+
     else:
         raise ValueError("Unknown key: %s" % key)
 
-    return lbl, img
-
-
+    return img
 if __name__ == '__main__':
     import os.path as op
     import sys

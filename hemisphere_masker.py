@@ -26,7 +26,8 @@ def flip_img_lr(img):
     # This won't work for all image formats! But
     # does work for those that we're working with...
     assert isinstance(img, nib.nifti1.Nifti1Image)
-    return new_img_like(img, data=img.get_data()[::-1])
+    img = new_img_like(img, data=img.get_data()[::-1], copy_header=True)
+    return img
 
 
 def split_bilateral_rois(maps_img, show_results=False):
