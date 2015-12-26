@@ -6,58 +6,15 @@ import os
 import os.path as op
 
 import numpy as np
-from matplotlib import pyplot as plt
 from nilearn import datasets
 from nilearn.image import new_img_like, iter_img
 from nilearn.input_data import NiftiMasker
-from nilearn._utils import check_niimg
-from nilearn.plotting import plot_stat_map
-from scipy import stats
 from sklearn.decomposition import FastICA
 from sklearn.externals.joblib import Memory
 
-from hemisphere_masker import MniHemisphereMasker
-from nifti_with_terms import NiftiImageWithTerms
-
-
-def clean_img(img):
-    """ Remove nan/inf entries."""
-    img = check_niimg(img)
-    img_data = img.get_data()
-    img_data[np.isnan(img_data)] = 0
-    img_data[np.isinf(img_data)] = 0
-    return new_img_like(img, img_data, copy_header=True)
-
-
-def cast_img(img, dtype=np.float32):
-    """ Cast image to the specified dtype"""
-    img = check_niimg(img)
-    img_data = img.get_data().astype(dtype)
-    return new_img_like(img, img_data, copy_header=True)
-
-
-def download_images_and_terms(n_images=np.inf, query_server=True):
-    # Get image and term data
-
-    # Download 100 matching images
-    ss_all = datasets.fetch_neurovault(max_images=n_images,
-                                       map_types=['F map', 'T map', 'Z map'],
-                                       query_server=query_server,
-                                       fetch_terms=True)
-    images = ss_all['images']
-    term_scores = ss_all['terms']
-
-    # Clean & report term scores
-    terms = np.array(term_scores.keys())
-    term_matrix = np.asarray(term_scores.values())
-    term_matrix[term_matrix < 0] = 0
-    total_scores = np.mean(term_matrix, axis=1)
-
-    print("Top 10 neurosynth terms from downloaded images:")
-    for term_idx in np.argsort(total_scores)[-10:][::-1]:
-        print('\t%-25s: %.2f' % (terms[term_idx], total_scores[term_idx]))
-
-    return images, term_scores
+from nibabel_ext import NiftiImageWithTerms
+from .masking import MniHemisphereMasker
+from .utils import cast_img, clean_img
 
 
 def generate_components(images, term_scores, hemi,
@@ -140,28 +97,29 @@ def generate_components(images, term_scores, hemi,
     return ica_image
 
 
-def plot_components(ica_image, hemi='', out_dir=None,
-                    bg_img=datasets.load_mni152_template()):
-    print("Plotting %s components..." % hemi)
-    terms = np.asarray(ica_image.terms.keys())
-    ica_terms = np.asarray(ica_image.terms.values()).T
+def compare_components(images, labels):
+    assert len(images) == 2
+    assert len(labels) == 2
+    assert images[0].shape == images[1].shape
+    n_components = images[0].shape[3]  # values @ 0 and 1 are the same
 
-    idx = 0
-    for ic_img, ic_terms in zip(iter_img(ica_image), ica_terms):
-        idx += 1
-        ic_thr = stats.scoreatpercentile(np.abs(ic_img.get_data()), 90)
-        display = plot_stat_map(ic_img, threshold=ic_thr, colorbar=False,
-                                black_bg=True, bg_img=bg_img)
+    print("Loading images.")
+    for img in images:
+        img.get_data()  # Just loaded to get them in memory..
 
-        # Use the 4 terms weighted most as a title
-        important_terms = terms[np.argsort(ic_terms)[-4:]]
-        title = '%d: %s' % (idx, ','.join(important_terms[::-1]))
-        display.title(title, size=16)
+    print("Scoring closest components (by L1 norm)")
+    score_mat = np.zeros((n_components, n_components))
+    for c1i, comp1 in enumerate(iter_img(images[0])):
+        for c2i, comp2 in enumerate(iter_img(images[1])):
+            if 'R' in labels or 'L' in labels:
+                hemi_idx = labels.index('R') or labels.index('L')
+                masker = MniHemisphereMasker(hemisphere=labels[hemi_idx]).fit()
+                c1_data = masker.transform(comp1)
+                c2_data = masker.transform(comp2)
+            else:
+                c1_data = comp1.get_data()
+                c2_data = comp2.get_data()
+            l1norm = np.abs(c1_data - c2_data).sum()
+            score_mat[c1i, c2i] = l1norm
 
-        # Save images instead of displaying
-        if out_dir is not None:
-            out_path = op.join(out_dir, '%s_component_%i.png' % (hemi, idx))
-            if not op.exists(op.dirname(out_path)):
-                os.makedirs(op.dirname(out_path))
-            plt.savefig(out_path)
-            plt.close()
+    return score_mat

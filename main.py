@@ -4,14 +4,17 @@
 
 import os.path as op
 
+import nibabel as nib
 import numpy as np
 import matplotlib.pyplot as plt
+from nilearn import datasets
+from nilearn.image import index_img, iter_img
 
-from compare_components import (compare_components, plot_comparisons)
-from generate_components import (download_images_and_terms,
-                                 generate_components,
-                                 plot_components)
-from nifti_with_terms import NiftiImageWithTerms
+from nibabel_ext import NiftiImageWithTerms
+from nilearn_ext.datasets import fetch_neurovault_images_and_terms
+from nilearn_ext.decomposition import compare_components, generate_components
+from nilearn_ext.masking import join_bilateral_rois
+from nilearn_ext.plotting import plot_comparisons, plot_components
 
 
 def load_or_generate_components(hemi, out_dir='.', *args, **kwargs):
@@ -25,14 +28,52 @@ def load_or_generate_components(hemi, out_dir='.', *args, **kwargs):
         plot_components(img, hemi=hemi, out_dir=kwargs.get('plot_dir'))
 
 
-def main(keys=('R', 'L'), n_components=20, n_images=np.inf,
+def mix_and_match_bilateral_components(**kwargs):
+    # LR image: do ICA for L, then R, then match up & combine
+    # into a set of bilateral images.
+    R_img = load_or_generate_components(hemi='R', **kwargs)  # noqa
+    L_img = load_or_generate_components(hemi='L', **kwargs)  # noqa
+
+    # Match
+    score_mat = compare_components(images=(R_img, L_img),
+                                   labels=('R', 'L'))
+    most_similar_idx = score_mat.argmin(axis=1)
+
+    # Mix
+    terms = R_img.terms.keys()
+    term_scores = []
+    bilat_imgs = []
+    for rci, R_comp_img in enumerate(iter_img(R_img)):
+        lci = most_similar_idx[rci]
+        L_comp_img = index_img(L_img, lci)  # noqa
+        # combine images
+        bilat_imgs.append(join_bilateral_rois(R_comp_img, L_comp_img))
+        # combine terms
+        if terms:
+            term_scores.append([(R_img.terms[t][rci] +
+                                 L_img.terms[t][lci]) / 2
+                                for t in terms])
+
+    # Squash into single image
+    img = nib.concat_images(bilat_imgs)
+    if terms:
+        img.terms = dict(zip(terms, np.asarray(term_scores).T))
+    return img
+
+
+def main(dataset, keys=('R', 'L'), n_components=20, n_images=np.inf,
          force=False, img_dir=None, plot_dir=None):
-    img_dir = img_dir or op.join('ica_nii', str(n_components))
-    plot_dir = plot_dir or op.join('ica_imgs', str(n_components))
+    this_dir = op.join(str(n_components), dataset)
+    img_dir = img_dir or op.join('ica_nii', this_dir)
+    plot_dir = plot_dir or op.join('ica_imgs', this_dir)
 
     # Download
-    images, term_scores = download_images_and_terms(
-        n_images=n_images, query_server=False)
+    if dataset == 'neurovault':
+        images, term_scores = fetch_neurovault_images_and_terms(
+            n_images=n_images, query_server=False)
+    elif dataset == 'abide':
+        images = datasets.fetch_abide_pcp(n_subjects=n_images)
+        term_scores = None
 
     # Analyze
     print("Running all analyses on both hemis together, and each separately.")
@@ -62,5 +103,5 @@ if __name__ == '__main__':
 
     # Settings
     n_components = 20
-    main(keys=(key1, key2), n_components=n_components, force=False)
+    main(dataset='neurovault', keys=(key1, key2), n_components=n_components)
     plt.show()

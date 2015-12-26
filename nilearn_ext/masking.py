@@ -1,5 +1,6 @@
-plotted_subject = 0  # subject to plot
-n_jobs = 1
+# *- encoding: utf-8 -*-
+# Author: Ben Cipollini
+# License: BSD
 
 import numpy as np
 
