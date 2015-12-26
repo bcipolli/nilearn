@@ -8,9 +8,13 @@ Submission to OHBM 2016 on functional lateralization using the neurovault datase
 
 Note: if using `virtualenv`, run: `fix-osx-virtualenv env/` (if `env/` is your virtual env root)
 
-### Generating the figures
+### Analyses
 
-Run `python plot_ica_neurovault_RL.py`
+Run `python main.py`. This calls:
+
+* `generate_components.py` - Generate the components and per-component figures
+* `compare_components.py` - Match up ICA components
+
 
 ### Outputs
 
