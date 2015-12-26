@@ -104,12 +104,13 @@ def generate_components(images, term_scores, hemi,
 
     # Now reshape list into 2D matrix, and remove failed images from terms
     X = np.vstack(X)  # noqa
-    term_matrix = term_matrix[:, xformable_idx]
+    term_matrix = term_matrix[:, xformable_idx]  # terms x images
 
     # Run ICA and map components to terms
     print("%s: Running ICA; may take time..." % hemi)
     fast_ica = FastICA(n_components=n_components, random_state=random_state)
-    ica_maps = memory.cache(fast_ica.fit_transform)(X.T).T
+    fast_ica = memory.cache(fast_ica.fit)(X.T)
+    ica_maps = memory.cache(fast_ica.transform)(X.T).T
 
     # Don't use the transform method as it centers the data
     ica_terms = np.dot(term_matrix, fast_ica.components_.T).T
@@ -135,7 +136,6 @@ def generate_components(images, term_scores, hemi,
         if not op.exists(op.dirname(out_path)):
             os.makedirs(op.dirname(out_path))
         ica_image.to_filename(out_path)
-
     return ica_image
 
 
@@ -150,7 +150,7 @@ def plot_components(ica_image, hemi='', out_dir=None,
         idx += 1
         ic_thr = stats.scoreatpercentile(np.abs(ic_img.get_data()), 90)
         display = plot_stat_map(ic_img, threshold=ic_thr, colorbar=False,
-                                bg_img=bg_img)
+                                black_bg=True, bg_img=bg_img)
 
         # Use the 4 terms weighted most as a title
         important_terms = terms[np.argsort(ic_terms)[-4:]]
@@ -164,26 +164,3 @@ def plot_components(ica_image, hemi='', out_dir=None,
                 os.makedirs(op.dirname(out_path))
             plt.savefig(out_path)
             plt.close()
-
-
-if __name__ == '__main__':
-
-    import warnings
-    warnings.simplefilter('ignore', DeprecationWarning)
-    warnings.simplefilter('error', RuntimeWarning)  # Detect bad NV images
-
-    n_components = 20
-    img_dir = op.join('ica_nii', str(n_components))
-    plot_dir = op.join('ica_maps', str(n_components))
-
-    images, term_scores = download_images_and_terms()
-
-    print("Running all analyses on both hemis together, and each separately.")
-    for hemi in ['both', 'R', 'L']:
-        img_path = op.join(img_dir, '%s_ica_components.nii.gz' % hemi)
-        if not op.exists(img_path):
-            generate_components(images=images, hemi=hemi,
-                                n_components=20, out_dir=img_dir,
-                                memory=Memory(cachedir='nilearn_cache'))
-
-        plot_components(img_path)
