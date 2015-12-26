@@ -122,9 +122,9 @@ def compare_components(images, labels, scoring='l1norm',
                     R_img = comp1 if labels.index('R') == 0 else comp2  # noqa
                     L_img = comp1 if labels.index('L') == 0 else comp2  # noqa
                 if c1_data[c1i] is None:
-                    c1_data[c1i] = masker.transform(flip_img_lr(R_img))
+                    c1_data[c1i] = masker.transform(flip_img_lr(R_img)).ravel()
                 if c2_data[c2i] is None:
-                    c2_data[c2i] = masker.transform(L_img)
+                    c2_data[c2i] = masker.transform(L_img).ravel()
 
             elif 'R' in labels or 'L' in labels:
                 hemi_idx = labels.index('R') or labels.index('L')
@@ -132,14 +132,14 @@ def compare_components(images, labels, scoring='l1norm',
                     masker = MniHemisphereMasker(hemisphere=labels[hemi_idx],
                                                  memory=memory).fit()
                 if c1_data[c1i] is None:
-                    c1_data[c1i] = c1_data[c1i] or masker.transform(comp1)
+                    c1_data[c1i] = masker.transform(comp1).ravel()
                 if c2_data[c2i] is None:
-                    c2_data[c2i] = c2_data[c2i] or masker.transform(comp2)
+                    c2_data[c2i] = masker.transform(comp2).ravel()
             else:
                 if c1_data[c1i] is None:
-                    c1_data[c1i] = comp1.get_data()
+                    c1_data[c1i] = comp1.get_data().ravel()
                 if c2_data[c1i] is None:
-                    c2_data[c2i] = comp2.get_data()
+                    c2_data[c2i] = comp2.get_data().ravel()
 
             # Choose a scoring system
             if not isinstance(scoring, string_types):  # function
