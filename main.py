@@ -66,7 +66,7 @@ def mix_and_match_bilateral_components(**kwargs):
 
 
 def main(dataset, keys=('R', 'L'), n_components=20, n_images=np.inf,
-         scoring='l1norm',
+         scoring='l1norm', query_server=True,
          force=False, img_dir=None, plot_dir=None):
     this_dir = op.join(dataset, '%s-%dics' % (scoring, n_components))
     img_dir = img_dir or op.join('ica_nii', this_dir)
@@ -75,7 +75,7 @@ def main(dataset, keys=('R', 'L'), n_components=20, n_images=np.inf,
     # Download
     if dataset == 'neurovault':
         images, term_scores = fetch_neurovault_images_and_terms(
-            n_images=n_images, query_server=False)
+            n_images=n_images, query_server=query_server)
     elif dataset == 'abide':
         images = datasets.fetch_abide_pcp(n_subjects=n_images)
         term_scores = None
@@ -118,5 +118,5 @@ if __name__ == '__main__':
     # Settings
     n_components = 20
     main(dataset='neurovault', keys=(key1, key2), n_components=n_components,
-         scoring='correlation')
+         scoring='correlation', query_server=True)
     plt.show()
