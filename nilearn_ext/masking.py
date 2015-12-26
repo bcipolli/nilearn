@@ -162,6 +162,8 @@ class MniHemisphereMasker(HemisphereMasker):
 
         super(MniHemisphereMasker, self).__init__(
             mask_img=mask_img,
+            target_affine=mask_img.affine,
+            target_shape=mask_img.shape,
             sessions=sessions,
             smoothing_fwhm=smoothing_fwhm,
             standardize=standardize,
@@ -169,8 +171,6 @@ class MniHemisphereMasker(HemisphereMasker):
             low_pass=low_pass,
             high_pass=high_pass,
             t_r=t_r,
-            target_affine=target_affine,
-            target_shape=target_shape,
             mask_strategy=mask_strategy,
             mask_args=mask_args,
             sample_mask=sample_mask,
