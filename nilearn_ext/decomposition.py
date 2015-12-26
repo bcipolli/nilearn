@@ -151,9 +151,9 @@ def compare_components(images, labels, scoring='l1norm',
                 if not isinstance(scoring, string_types):  # function
                     sc = scoring(c1d, c2d)
                 elif scoring == 'l1norm':
-                    sc = np.linalg.norm(c1d, c2d, ord=1)
+                    sc = np.linalg.norm(c1d - c2d, ord=1)
                 elif scoring == 'l2norm':
-                    sc = np.linalg.norm(c1d, c2d, ord=2)
+                    sc = np.linalg.norm(c1d - c2d, ord=2)
                 elif scoring == 'correlation':
                     sc = 1 - stats.stats.pearsonr(c1d, c2d)[0]
                 else:
