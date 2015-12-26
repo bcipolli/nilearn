@@ -1,3 +1,7 @@
+# *- encoding: utf-8 -*-
+# Author: Ben Cipollini
+# License: BSD
+
 import nibabel as nib
 from six.moves import cPickle
 

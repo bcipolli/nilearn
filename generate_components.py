@@ -36,12 +36,13 @@ def cast_img(img, dtype=np.float32):
     return new_img_like(img, img_data, copy_header=True)
 
 
-def download_images_and_terms(n_images=np.inf):
+def download_images_and_terms(n_images=np.inf, query_server=True):
     # Get image and term data
 
     # Download 100 matching images
     ss_all = datasets.fetch_neurovault(max_images=n_images,
                                        map_types=['F map', 'T map', 'Z map'],
+                                       query_server=query_server,
                                        fetch_terms=True)
     images = ss_all['images']
     term_scores = ss_all['terms']

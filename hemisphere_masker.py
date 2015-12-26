@@ -147,4 +147,5 @@ class MniHemisphereMasker(HemisphereMasker):
     def mask_as_img(self, img):
         """ Convenience function to mask image, return as image."""
         X = self.fit_transform(img)  # noqa
-        return self.inverse_transform(X)
+        new_img = self.inverse_transform(X)
+        return new_img_like(img, data=new_img.get_data(), copy_header=True)
