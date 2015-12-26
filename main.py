@@ -23,7 +23,7 @@ def load_or_generate_components(hemi, out_dir='.', plot_dir=None,
                                 *args, **kwargs):
     # Only re-run if image doesn't exist.
     img_path = op.join(out_dir, '%s_ica_components.nii.gz' % hemi)
-    if not kwargs.get('force') and op.exists(img_path):
+    if not kwargs.pop('force') and op.exists(img_path):
         img = NiftiImageWithTerms.from_filename(img_path)
 
     else:
@@ -84,7 +84,7 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
     print("Running all analyses on both hemis together, and each separately.")
     imgs = dict()
     kwargs = dict(images=images, term_scores=term_scores,
-                  n_components=n_components,
+                  n_components=n_components, force=force,
                   out_dir=img_dir, plot_dir=plot_dir)
     for key in keys:
         if key.lower() in ('rl', 'lr'):
