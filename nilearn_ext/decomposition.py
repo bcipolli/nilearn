@@ -8,8 +8,11 @@ import os.path as op
 import numpy as np
 from nilearn import datasets
 from nilearn.image import iter_img
+
+from six import string_types
 from sklearn.decomposition import FastICA
 from sklearn.externals.joblib import Memory
+from scipy import stats
 
 from nibabel_ext import NiftiImageWithTerms
 from .image import cast_img, clean_img
@@ -76,9 +79,6 @@ def generate_components(images, term_scores, hemi,
             ica_maps[idx] = -ic
             ica_terms[idx] = -ic_terms
 
-    # Generate figures
-    print("%s: Generating figures." % hemi)
-
     # Create image from maps, save terms to the image directly
     ica_image = NiftiImageWithTerms.from_image(
         masker.inverse_transform(ica_maps))
@@ -93,7 +93,8 @@ def generate_components(images, term_scores, hemi,
     return ica_image
 
 
-def compare_components(images, labels):
+def compare_components(images, labels, scoring='l1norm',
+                       memory=Memory(cachedir='nilearn_cache')):
     assert len(images) == 2
     assert len(labels) == 2
     assert images[0].shape == images[1].shape
@@ -103,19 +104,54 @@ def compare_components(images, labels):
     for img in images:
         img.get_data()  # Just loaded to get them in memory..
 
-    print("Scoring closest components (by L1 norm)")
+    print("Scoring closest components (by %s)" % str(scoring))
     score_mat = np.zeros((n_components, n_components))
-    for c1i, comp1 in enumerate(iter_img(images[0])):
-        for c2i, comp2 in enumerate(iter_img(images[1])):
-            if 'R' in labels or 'L' in labels:
+    c1_data = [None] * n_components
+    c2_data = [None] * n_components
+
+    c1_images = list(iter_img(images[0]))
+    c2_images = list(iter_img(images[1]))
+    for c1i, comp1 in enumerate(c1_images):
+        for c2i, comp2 in enumerate(c2_images):
+            # Make sure the two images align (i.e. not R and L opposite),
+            #   and that only good voxels are compared (i.e. not full vs half)
+            if 'R' in labels and 'L' in labels:
+                if c1_data[c1i] is None or c2_data[c2i] is None:
+                    masker = MniHemisphereMasker(hemisphere='L',
+                                                 memory=memory).fit()
+                    R_img = comp1 if labels.index('R') == 0 else comp2  # noqa
+                    L_img = comp1 if labels.index('L') == 0 else comp2  # noqa
+                if c1_data[c1i] is None:
+                    c1_data[c1i] = masker.transform(flip_img_lr(R_img))
+                if c2_data[c2i] is None:
+                    c2_data[c2i] = masker.transform(L_img)
+
+            elif 'R' in labels or 'L' in labels:
                 hemi_idx = labels.index('R') or labels.index('L')
-                masker = MniHemisphereMasker(hemisphere=labels[hemi_idx]).fit()
-                c1_data = masker.transform(comp1)
-                c2_data = masker.transform(comp2)
+                if c1_data[c1i] is None or c2_data[c2i] is None:
+                    masker = MniHemisphereMasker(hemisphere=labels[hemi_idx],
+                                                 memory=memory).fit()
+                if c1_data[c1i] is None:
+                    c1_data[c1i] = c1_data[c1i] or masker.transform(comp1)
+                if c2_data[c2i] is None:
+                    c2_data[c2i] = c2_data[c2i] or masker.transform(comp2)
             else:
-                c1_data = comp1.get_data()
-                c2_data = comp2.get_data()
-            l1norm = np.abs(c1_data - c2_data).sum()
-            score_mat[c1i, c2i] = l1norm
+                if c1_data[c1i] is None:
+                    c1_data[c1i] = comp1.get_data()
+                if c2_data[c1i] is None:
+                    c2_data[c2i] = comp2.get_data()
+
+            # Choose a scoring system
+            if not isinstance(scoring, string_types):  # function
+                score = scoring(c1_data[c1i], c2_data[c2i])
+            elif scoring == 'l1norm':
+                score = np.linalg.norm(c1_data[c1i] - c2_data[c2i], ord=1)
+            elif scoring == 'l2norm':
+                score = np.linalg.norm(c1_data[c1i] - c2_data[c2i], ord=2)
+            elif scoring == 'correlation':
+                score = stats.stats.pearsonr(c1_data[c1i], c2_data[c2i])[0]
+            else:
+                raise NotImplementedError(scoring)
+            score_mat[c1i, c2i] = score
 
     return score_mat
