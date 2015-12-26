@@ -72,12 +72,13 @@ def generate_components(images, term_scores, hemi,
     # Don't use the transform method as it centers the data
     ica_terms = np.dot(term_matrix, fast_ica.components_.T).T
 
+    # 2015/12/26 - sign matters for comparison, so don't do this!
     # Pretty up the results
-    for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
-        if -ic.min() > ic.max():
-            # Flip the map's sign for prettiness
-            ica_maps[idx] = -ic
-            ica_terms[idx] = -ic_terms
+    # for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
+    #     if -ic.min() > ic.max():
+    #         # Flip the map's sign for prettiness
+    #         ica_maps[idx] = -ic
+    #         ica_terms[idx] = -ic_terms
 
     # Create image from maps, save terms to the image directly
     ica_image = NiftiImageWithTerms.from_image(
@@ -141,17 +142,23 @@ def compare_components(images, labels, scoring='l1norm',
                 if c2_data[c1i] is None:
                     c2_data[c2i] = comp2.get_data().ravel()
 
-            # Choose a scoring system
-            if not isinstance(scoring, string_types):  # function
-                score = scoring(c1_data[c1i], c2_data[c2i])
-            elif scoring == 'l1norm':
-                score = np.linalg.norm(c1_data[c1i] - c2_data[c2i], ord=1)
-            elif scoring == 'l2norm':
-                score = np.linalg.norm(c1_data[c1i] - c2_data[c2i], ord=2)
-            elif scoring == 'correlation':
-                score = stats.stats.pearsonr(c1_data[c1i], c2_data[c2i])[0]
-            else:
-                raise NotImplementedError(scoring)
+            # Choose a scoring system.
+            # Score should indicate DISSIMILARITY
+            # Component sign is meaningless, so try both.
+            score = np.inf
+            for sign in [1, -1]:
+                c1d, c2d = c1_data[c1i], sign * c2_data[c2i]
+                if not isinstance(scoring, string_types):  # function
+                    sc = scoring(c1d, c2d)
+                elif scoring == 'l1norm':
+                    sc = np.linalg.norm(c1d, c2d, ord=1)
+                elif scoring == 'l2norm':
+                    sc = np.linalg.norm(c1d, c2d, ord=2)
+                elif scoring == 'correlation':
+                    sc = 1 - stats.stats.pearsonr(c1d, c2d)[0]
+                else:
+                    raise NotImplementedError(scoring)
+                score = min(score, sc)
             score_mat[c1i, c2i] = score
 
     return score_mat
