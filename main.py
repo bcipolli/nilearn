@@ -105,18 +105,31 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
 
 
 if __name__ == '__main__':
-    import sys
     import warnings
+    from argparse import ArgumentParser
 
+    # Look for image computation errors
     warnings.simplefilter('ignore', DeprecationWarning)
     warnings.simplefilter('error', RuntimeWarning)  # Detect bad NV images
 
-    # Select two images to compare
-    key1 = 'R' if len(sys.argv) < 2 else sys.argv[1]
-    key2 = 'L' if len(sys.argv) < 3 else sys.argv[2]
+    # Arg parsing
+    hemi_choices = ['R', 'L', 'both']
+    parser = ArgumentParser(description="Really?")
+    parser.add_argument('key1', nargs='?', default='R', choices=hemi_choices)
+    parser.add_argument('key2', nargs='?', default='L', choices=hemi_choices)
+    parser.add_argument('--force', action='store_true', default=False)
+    parser.add_argument('--offline', action='store_true', default=False)
+    parser.add_argument('--components', nargs='?', type=int, default=20,
+                        dest='n_components')
+    parser.add_argument('--dataset', nargs='?', default='neurovault',
+                        choices=['neurovault'])
+    parser.add_argument('--scoring', nargs='?', default='scoring',
+                        choices=['l1norm', 'l2norm', 'correlation'])
+    args = vars(parser.parse_args())
 
-    # Settings
-    n_components = 20
-    main(dataset='neurovault', keys=(key1, key2), n_components=n_components,
-         scoring='correlation', query_server=True)
+    # Alias args
+    keys = args.pop('key1'), args.pop('key2')
+    query_server = not args.pop('offline')
+    main(keys=keys, query_server=query_server, **args)
+
     plt.show()

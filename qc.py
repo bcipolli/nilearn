@@ -16,39 +16,56 @@ from nilearn_ext.image import clean_img, cast_img
 from nilearn_ext.masking import MniNiftiMasker
 from nilearn_ext.plotting import save_and_close
 
-# Download matching images
-images = fetch_neurovault(fetch_terms=False, query_server=True)[0]
-plot_dir = 'qc'
 
-# Get ready
-masker = MniNiftiMasker(memory=Memory(cachedir='nilearn_cache')).fit()
-if op.exists(plot_dir):  # Delete old plots.
-    shutil.rmtree(plot_dir)
+def qc(**kwargs):
+    # Download matching images
+    images = fetch_neurovault(fetch_terms=False, **kwargs)[0]
+    plot_dir = 'qc'
 
-for ii, image in enumerate(images):
-    ri = ii % 4  # row i
-    ci = (ii / 4) % 4  # column i
-    pi = ii % 16 + 1  # plot i
-    fi = ii / 16  # figure i
+    # Get ready
+    masker = MniNiftiMasker(memory=Memory(cachedir='nilearn_cache')).fit()
+    if op.exists(plot_dir):  # Delete old plots.
+        shutil.rmtree(plot_dir)
 
-    if ri == 0 and ci == 0:
-        fh = plt.figure(figsize=(16, 10))
-        print('Plot %03d of %d' % (fi + 1, np.ceil(len(images) / 16.)))
-    ax = fh.add_subplot(4, 4, pi)
-    title = op.join(str(image['collection_id']), str(image['id']),
-                    op.basename(image['local_path']))
+    for ii, image in enumerate(images):
+        ri = ii % 4  # row i
+        ci = (ii / 4) % 4  # column i
+        pi = ii % 16 + 1  # plot i
+        fi = ii / 16  # figure i
 
-    # Images may fail to be transformed, and are of different shapes,
-    # so we need to trasnform one-by-one and keep track of failures.
-    img = cast_img(image['local_path'], dtype=np.float32)
-    img = clean_img(img)
-    try:
-        img = masker.inverse_transform(masker.transform(img))
-    except Exception as e:
-        print("Failed to mask/reshape image %s: %s" % (title, e))
+        if ri == 0 and ci == 0:
+            fh = plt.figure(figsize=(16, 10))
+            print('Plot %03d of %d' % (fi + 1, np.ceil(len(images) / 16.)))
+        ax = fh.add_subplot(4, 4, pi)
+        title = op.join(str(image['collection_id']), str(image['id']),
+                        op.basename(image['local_path']))
 
-    plot_stat_map(img, axes=ax, black_bg=True, title=title, colorbar=False)
+        # Images may fail to be transformed, and are of different shapes,
+        # so we need to trasnform one-by-one and keep track of failures.
+        img = cast_img(image['local_path'], dtype=np.float32)
+        img = clean_img(img)
+        try:
+            img = masker.inverse_transform(masker.transform(img))
+        except Exception as e:
+            print("Failed to mask/reshape image %s: %s" % (title, e))
 
-    if (ri == 3 and ci == 3) or ii == len(images) - 1:
-        out_path = op.join('qc', 'fig%03d.png' % (fi + 1))
-        save_and_close(out_path)
+        plot_stat_map(img, axes=ax, black_bg=True, title=title, colorbar=False)
+
+        if (ri == 3 and ci == 3) or ii == len(images) - 1:
+            out_path = op.join('qc', 'fig%03d.png' % (fi + 1))
+            save_and_close(out_path)
+
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser
+
+    # Arg parsing
+    parser = ArgumentParser(description="Really?")
+    parser.add_argument('--offline', action='store_true', default=False)
+    args = vars(parser.parse_args())
+
+    # Alias args
+    query_server = not args.pop('offline')
+    qc(query_server=query_server, **args)
+
+    plt.show()
