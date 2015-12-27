@@ -64,26 +64,47 @@ def mix_and_match_bilateral_components(**kwargs):
     return img
 
 
-def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
-         scoring='l1norm', query_server=True,
-         force=False, img_dir=None, plot_dir=None, random_state=42):
-    this_dir = op.join(dataset, '%s-%dics' % (scoring, n_components))
-    img_dir = img_dir or op.join('ica_nii', this_dir)
-    plot_dir = plot_dir or op.join('ica_imgs', this_dir)
+def get_dataset(dataset, fetch_terms=False, max_images=np.inf,
+                **kwargs):
 
     # Download
     if dataset == 'neurovault':
         images, term_scores = fetch_neurovault(
-            max_images=max_images, query_server=query_server)
+            max_images=max_images, fetch_terms=fetch_terms, **kwargs)
+        images = [im['local_path'] for im in images]
+
     elif dataset == 'abide':
-        images = datasets.fetch_abide_pcp(n_subjects=max_images)
+        dataset = datasets.fetch_abide_pcp(
+            n_subjects=min(94, max_images), **kwargs)
+        images = dataset['func_preproc']
         term_scores = None
+
+    elif dataset == 'nyu':
+        dataset = datasets.fetch_nyu_rest(
+            n_subjects=min(25, max_images), **kwargs)
+        images = dataset['func']
+        term_scores = None
+
+    else:
+        raise ValueError("Unknown dataset: %s" % dataset)
+    return images, term_scores
+
+
+def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
+         scoring='l1norm', query_server=True,
+         force=False, nii_dir=None, plot_dir=None, random_state=42):
+    nii_dir = nii_dir or op.join('ica_nii', dataset, str(n_components))
+    plot_dir = plot_dir or op.join('ica_imgs', dataset,
+                                   '%s-%dics' % (scoring, n_components))
+
+    images, term_scores = get_dataset(dataset, max_images=max_images,
+                                      query_server=query_server)
 
     # Analyze images
     print("Running all analyses on both hemis together, and each separately.")
     imgs = []
     kwargs = dict(images=images, n_components=n_components,
-                  term_scores=term_scores, out_dir=img_dir, plot_dir=plot_dir)
+                  term_scores=term_scores, out_dir=nii_dir, plot_dir=plot_dir)
     for key in keys:
         if key.lower() in ('rl', 'lr'):
             imgs.append(mix_and_match_bilateral_components(**kwargs))
@@ -121,7 +142,7 @@ if __name__ == '__main__':
     parser.add_argument('--components', nargs='?', type=int, default=20,
                         dest='n_components')
     parser.add_argument('--dataset', nargs='?', default='neurovault',
-                        choices=['neurovault'])
+                        choices=['neurovault', 'abide', 'nyu'])
     parser.add_argument('--seed', nargs='?', type=int, default=42,
                         dest='random_state')
     parser.add_argument('--scoring', nargs='?', default='scoring',

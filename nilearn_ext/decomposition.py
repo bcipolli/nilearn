@@ -19,13 +19,13 @@ from .image import cast_img, clean_img
 from .masking import MniHemisphereMasker, flip_img_lr, MniNiftiMasker
 
 
-def generate_components(images, term_scores, hemi,
+def generate_components(images, hemi, term_scores=None,
                         n_components=20, random_state=42,
                         out_dir=None, memory=Memory(cachedir='nilearn_cache')):
-    terms = term_scores.keys()
-    term_matrix = np.asarray(term_scores.values())
-    term_matrix[term_matrix < 0] = 0
-
+    """
+        images: list
+            Can be nibabel images, can be file paths.
+    """
     # Create grey matter mask from mni template
     target_img = datasets.load_mni152_template()
 
@@ -48,29 +48,25 @@ def generate_components(images, term_scores, hemi,
     X = []  # noqa
     xformable_idx = np.ones((len(images),), dtype=bool)
     for ii, im in enumerate(images):
-        img = cast_img(im['local_path'], dtype=np.float32)
+        img = cast_img(im, dtype=np.float32)
         img = clean_img(img)
         try:
             X.append(masker.transform(img))
         except Exception as e:
             print("Failed to mask/reshape image %d/%s: %s" % (
                 im.get('collection_id', 0),
-                op.basename(im['local_path']),
+                op.basename(im),
                 e))
             xformable_idx[ii] = False
 
-    # Now reshape list into 2D matrix, and remove failed images from terms
+    # Now reshape list into 2D matrix
     X = np.vstack(X)  # noqa
-    term_matrix = term_matrix[:, xformable_idx]  # terms x images
 
     # Run ICA and map components to terms
     print("%s: Running ICA; may take time..." % hemi)
     fast_ica = FastICA(n_components=n_components, random_state=random_state)
     fast_ica = memory.cache(fast_ica.fit)(X.T)
     ica_maps = memory.cache(fast_ica.transform)(X.T).T
-
-    # Don't use the transform method as it centers the data
-    ica_terms = np.dot(term_matrix, fast_ica.components_.T).T
 
     # 2015/12/26 - sign matters for comparison, so don't do this!
     # Pretty up the results
@@ -83,7 +79,15 @@ def generate_components(images, term_scores, hemi,
     # Create image from maps, save terms to the image directly
     ica_image = NiftiImageWithTerms.from_image(
         masker.inverse_transform(ica_maps))
-    ica_image.terms = dict(zip(terms, ica_terms.T))
+
+    if term_scores is not None:
+        terms = term_scores.keys()
+        term_matrix = np.asarray(term_scores.values())
+        term_matrix[term_matrix < 0] = 0
+        term_matrix = term_matrix[:, xformable_idx]  # terms x images
+        # Don't use the transform method as it centers the data
+        ica_terms = np.dot(term_matrix, fast_ica.components_.T).T
+        ica_image.terms = dict(zip(terms, ica_terms.T))
 
     # Write to disk
     if out_dir is not None:

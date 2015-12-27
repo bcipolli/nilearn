@@ -11,6 +11,7 @@ import numpy as np
 from nilearn.plotting import plot_stat_map
 from sklearn.externals.joblib import Memory
 
+from main import get_dataset
 from nilearn_ext.datasets import fetch_neurovault
 from nilearn_ext.image import clean_img, cast_img
 from nilearn_ext.masking import MniNiftiMasker
@@ -31,9 +32,10 @@ def qc_image_metadata(**kwargs):
         print("")
 
 
-def qc_image_data(**kwargs):
+def qc_image_data(dataset, **kwargs):
     # Download matching images
-    images = fetch_neurovault(fetch_terms=False, **kwargs)[0]
+    kwargs['fetch_terms'] = False
+    images = get_dataset(dataset, **kwargs)[0]
     plot_dir = 'qc'
 
     # Get ready
@@ -86,6 +88,8 @@ if __name__ == '__main__':
     parser.add_argument('check', nargs='?', default='data',
                         choices=('data', 'metadata'))
     parser.add_argument('--offline', action='store_true', default=False)
+    parser.add_argument('--dataset', nargs='?', default='neurovault',
+                        choices=['neurovault', 'abide', 'nyu'])
     args = vars(parser.parse_args())
 
     # Alias args
