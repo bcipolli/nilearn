@@ -9,6 +9,8 @@ def reorder_mat(mat):
     # Try to put items on the diagonal.
     most_similar_idx = mat.argmin(axis=1)
     most_similar = mat.min(axis=1)
+    most_similar[most_similar == 0] = np.minimum(  # avoid div by zero
+        mat[mat > 0].min() / 2, np.sqrt(mat.std()))
     norm_mat = (mat.T / most_similar).T
 
     # Order from most to most certain.

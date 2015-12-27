@@ -66,7 +66,7 @@ def mix_and_match_bilateral_components(**kwargs):
 
 def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
          scoring='l1norm', query_server=True,
-         force=False, img_dir=None, plot_dir=None):
+         force=False, img_dir=None, plot_dir=None, random_state=42):
     this_dir = op.join(dataset, '%s-%dics' % (scoring, n_components))
     img_dir = img_dir or op.join('ica_nii', this_dir)
     plot_dir = plot_dir or op.join('ica_imgs', this_dir)
@@ -81,24 +81,24 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
 
     # Analyze images
     print("Running all analyses on both hemis together, and each separately.")
-    imgs = dict()
-    kwargs = dict(images=images, term_scores=term_scores,
-                  n_components=n_components, force=force,
-                  out_dir=img_dir, plot_dir=plot_dir)
+    imgs = []
+    kwargs = dict(images=images, n_components=n_components,
+                  term_scores=term_scores, out_dir=img_dir, plot_dir=plot_dir)
     for key in keys:
         if key.lower() in ('rl', 'lr'):
-            imgs[key] = mix_and_match_bilateral_components(**kwargs)
+            imgs.append(mix_and_match_bilateral_components(**kwargs))
         else:
-            imgs[key] = load_or_generate_components(hemi=key, **kwargs)
+            imgs.append(load_or_generate_components(
+                hemi=key, force=force, random_state=random_state, **kwargs))
 
     # Show confusion matrix
-    score_mat = compare_components(images=imgs.values(), labels=imgs.keys(),
+    score_mat = compare_components(images=imgs, labels=keys,
                                    scoring=scoring)
     plot_comparison_matrix(score_mat, scoring=scoring, normalize=True,
                            out_dir=plot_dir, keys=keys)
 
     # Get the requested images
-    plot_component_comparisons(images=imgs.values(), labels=imgs.keys(),
+    plot_component_comparisons(images=imgs, labels=keys,
                                score_mat=score_mat, out_dir=plot_dir)
 
 
@@ -117,17 +117,25 @@ if __name__ == '__main__':
     parser.add_argument('key2', nargs='?', default='L', choices=hemi_choices)
     parser.add_argument('--force', action='store_true', default=False)
     parser.add_argument('--offline', action='store_true', default=False)
+    parser.add_argument('--qc', action='store_true', default=False)
     parser.add_argument('--components', nargs='?', type=int, default=20,
                         dest='n_components')
     parser.add_argument('--dataset', nargs='?', default='neurovault',
                         choices=['neurovault'])
+    parser.add_argument('--seed', nargs='?', type=int, default=42,
+                        dest='random_state')
     parser.add_argument('--scoring', nargs='?', default='scoring',
                         choices=['l1norm', 'l2norm', 'correlation'])
     args = vars(parser.parse_args())
 
-    # Alias args
-    keys = args.pop('key1'), args.pop('key2')
+    # Run qc
     query_server = not args.pop('offline')
+    if args.pop('qc'):
+        from qc import qc_image_data
+        qc_image_data(args['dataset'], query_server=query_server)
+
+    # Run main
+    keys = args.pop('key1'), args.pop('key2')
     main(keys=keys, query_server=query_server, **args)
 
     plt.show()

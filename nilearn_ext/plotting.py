@@ -114,9 +114,9 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
                            keys=('R', 'L'), vmax=None, colorbar=True):
 
     # Settings
-    vmax = vmax or 10
-    vmin = 1 if normalize else 0
     score_mat = reorder_mat(score_mat) if normalize else score_mat
+    vmax = vmax or min(score_mat.max(), 10)
+    vmin = 1 if normalize else 0
 
     # Plotting
     fh = plt.figure(figsize=(10, 10))
