@@ -57,7 +57,12 @@ def qc(**kwargs):
 
 
 if __name__ == '__main__':
+    import warnings
     from argparse import ArgumentParser
+
+    # Look for image computation errors
+    warnings.simplefilter('ignore', DeprecationWarning)
+    warnings.simplefilter('error', RuntimeWarning)  # Detect bad NV images
 
     # Arg parsing
     parser = ArgumentParser(description="Really?")
