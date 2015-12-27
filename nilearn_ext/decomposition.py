@@ -128,7 +128,10 @@ def compare_components(images, labels, scoring='l1norm',
                     c2_data[c2i] = masker.transform(L_img).ravel()
 
             elif 'R' in labels or 'L' in labels:
-                hemi_idx = labels.index('R') or labels.index('L')
+                if 'R' in labels:
+                    hemi_idx = labels.index('R')
+                else:
+                    hemi_idx = labels.index('L')
                 if c1_data[c1i] is None or c2_data[c2i] is None:
                     masker = MniHemisphereMasker(hemisphere=labels[hemi_idx],
                                                  memory=memory).fit()
