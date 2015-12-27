@@ -122,6 +122,8 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
     plot_component_comparisons(images=imgs, labels=keys,
                                score_mat=score_mat, out_dir=plot_dir)
 
+    return imgs, keys, score_mat
+
 
 if __name__ == '__main__':
     import warnings
