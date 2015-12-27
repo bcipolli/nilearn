@@ -116,29 +116,26 @@ def compare_components(images, labels, scoring='l1norm',
 
     c1_images = list(iter_img(images[0]))
     c2_images = list(iter_img(images[1]))
+
+    lh_masker = MniHemisphereMasker(hemisphere='L', memory=memory).fit()
+    rh_masker = MniHemisphereMasker(hemisphere='R', memory=memory).fit()
+
     for c1i, comp1 in enumerate(c1_images):
         for c2i, comp2 in enumerate(c2_images):
             # Make sure the two images align (i.e. not R and L opposite),
             #   and that only good voxels are compared (i.e. not full vs half)
             if 'R' in labels and 'L' in labels:
                 if c1_data[c1i] is None or c2_data[c2i] is None:
-                    masker = MniHemisphereMasker(hemisphere='L',
-                                                 memory=memory).fit()
                     R_img = comp1 if labels.index('R') == 0 else comp2  # noqa
                     L_img = comp1 if labels.index('L') == 0 else comp2  # noqa
+                    masker = lh_masker  # use same masker; ensures same size
                 if c1_data[c1i] is None:
                     c1_data[c1i] = masker.transform(flip_img_lr(R_img)).ravel()
                 if c2_data[c2i] is None:
                     c2_data[c2i] = masker.transform(L_img).ravel()
 
             elif 'R' in labels or 'L' in labels:
-                if 'R' in labels:
-                    hemi_idx = labels.index('R')
-                else:
-                    hemi_idx = labels.index('L')
-                if c1_data[c1i] is None or c2_data[c2i] is None:
-                    masker = MniHemisphereMasker(hemisphere=labels[hemi_idx],
-                                                 memory=memory).fit()
+                masker = rh_masker if 'R' in labels else lh_masker
                 if c1_data[c1i] is None:
                     c1_data[c1i] = masker.transform(comp1).ravel()
                 if c2_data[c2i] is None:
