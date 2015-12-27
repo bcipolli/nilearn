@@ -25,6 +25,9 @@ def save_and_close(out_path, fh=None):
 
 def _title_from_terms(terms, ic_idx, label=None, n_terms=4):
 
+    if terms is None:
+        return '%s[%d]' % (label, ic_idx)
+
     # Use the 4 terms weighted most as a title
     ica_terms = np.asarray(terms.values()).T
     ic_terms = ica_terms[ic_idx]
