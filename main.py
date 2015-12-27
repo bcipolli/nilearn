@@ -117,6 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('key2', nargs='?', default='L', choices=hemi_choices)
     parser.add_argument('--force', action='store_true', default=False)
     parser.add_argument('--offline', action='store_true', default=False)
+    parser.add_argument('--qc', action='store_true', default=False)
     parser.add_argument('--components', nargs='?', type=int, default=20,
                         dest='n_components')
     parser.add_argument('--dataset', nargs='?', default='neurovault',
@@ -127,9 +128,14 @@ if __name__ == '__main__':
                         choices=['l1norm', 'l2norm', 'correlation'])
     args = vars(parser.parse_args())
 
-    # Alias args
-    keys = args.pop('key1'), args.pop('key2')
+    # Run qc
     query_server = not args.pop('offline')
+    if args.pop('qc'):
+        from qc import qc_image_data
+        qc_image_data(args['dataset'], query_server=query_server)
+
+    # Run main
+    keys = args.pop('key1'), args.pop('key2')
     main(keys=keys, query_server=query_server, **args)
 
     plt.show()
