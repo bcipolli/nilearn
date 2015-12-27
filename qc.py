@@ -17,7 +17,21 @@ from nilearn_ext.masking import MniNiftiMasker
 from nilearn_ext.plotting import save_and_close
 
 
-def qc(**kwargs):
+def qc_image_metadata(**kwargs):
+    images = fetch_neurovault(fetch_terms=False, **kwargs)[0]
+
+    print len(images)
+
+    for key in sorted(images[0].keys()):
+        unique_vals = np.unique([im.get(key, 'blue') for im in images])
+        print("%s (%d): " % (key, len(unique_vals)),
+              unique_vals[:5])
+        print("Sample image with missing value",
+              [im['url'] for im in images if key not in im][-1:])
+        print("")
+
+
+def qc_image_data(**kwargs):
     # Download matching images
     images = fetch_neurovault(fetch_terms=False, **kwargs)[0]
     plot_dir = 'qc'
@@ -66,11 +80,16 @@ if __name__ == '__main__':
 
     # Arg parsing
     parser = ArgumentParser(description="Really?")
+    parser.add_argument('check', nargs='?', default='data',
+                        choices=('data', 'metadata'))
     parser.add_argument('--offline', action='store_true', default=False)
     args = vars(parser.parse_args())
 
     # Alias args
     query_server = not args.pop('offline')
-    qc(query_server=query_server, **args)
+    if args.pop('check') == 'data':
+        qc_image_data(query_server=query_server, **args)
+    else:
+        qc_image_metadata(query_server=query_server, **args)
 
     plt.show()
