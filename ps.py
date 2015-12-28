@@ -14,6 +14,7 @@ score matrix).
 import os.path as op
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from main import main
 from nilearn_ext.plotting import save_and_close
@@ -21,17 +22,41 @@ from nilearn_ext.plotting import save_and_close
 
 def do_ic_loop(components, scoring, dataset, **kwargs):
     score_mats = []
+    images = []
     for c in components:
         print("Running analysis with %d components." % c)
-        score_mats.append(
-            main(n_components=c, dataset=dataset, scoring=scoring,
-                 **kwargs)[2])
+        imgs, lbls, sm = main(n_components=c, dataset=dataset,
+                              scoring=scoring, **kwargs)
+        score_mats.append(sm)
+        images.append(imgs[0])
 
     # Now we have all the scores; now plot.
+    lines = dict(err=[], above_0005=[], above_001=[], above_005=[])
+    for sm, img in zip(score_mats, images):
+        sm[sm == 0] = np.inf
+        data = img.get_data()[img.get_data() > 0]
+
+        # we want to maximize how similar the most confusible components are.
+
+        lines['err'].append(sm.min(axis=1).mean())
+
+        # Track how sparse the features are.
+        lines['above_0005'].append(np.abs(data > 0.005).sum())
+        lines['above_005'].append(np.abs(data > 0.05).sum())
+        lines['above_001'].append(np.abs(data > 0.01).sum())
+
+    # Normalize
+    for key in lines:
+        total = float(max(1E-10, np.sum(lines[key])))
+        lines[key] = np.asarray(lines[key]) / total
+
+    fh = plt.figure(figsize=(10, 10))
+    fh.gca().plot(components, np.asarray(lines.values())[-1].T)
+    # fh.gca().legend(lh, lines.keys())
+
     out_dir = op.join('ica_imgs', dataset)
     out_path = op.join(out_dir, '%s.png' % scoring)
-    plt.plot(components, [sm.mean() for sm in score_mats])
-    save_and_close(out_path)
+    save_and_close(out_path, fh=fh)
 
 
 if __name__ == '__main__':

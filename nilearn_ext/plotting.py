@@ -19,8 +19,8 @@ def save_and_close(out_path, fh=None):
     fh = fh or plt.gcf()
     if not op.exists(op.dirname(out_path)):
         os.makedirs(op.dirname(out_path))
-    plt.savefig(out_path)
-    plt.close()
+    fh.savefig(out_path)
+    plt.close(fh)
 
 
 def _title_from_terms(terms, ic_idx, label=None, n_terms=4):
