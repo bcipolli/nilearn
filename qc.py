@@ -44,7 +44,7 @@ def qc_image_data(dataset, **kwargs):
         shutil.rmtree(plot_dir)
 
     for ii, image in enumerate(images):
-        if image['local_path'] is None:
+        if image is None:
             continue
 
         ri = ii % 4  # row i
