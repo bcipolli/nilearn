@@ -8,6 +8,7 @@ import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from nilearn.plotting import plot_stat_map
 from sklearn.externals.joblib import Memory
 
@@ -42,6 +43,9 @@ def qc_image_data(dataset, **kwargs):
     masker = MniNiftiMasker(memory=Memory(cachedir='nilearn_cache')).fit()
     if op.exists(plot_dir):  # Delete old plots.
         shutil.rmtree(plot_dir)
+        
+    # Dataframe to show collection id for the each figure
+    id_summary = pd.DataFrame(columns=('Figure #', 'collection id', 'image filename'))
 
     for ii, image in enumerate(images):
         im_path = image['local_path']
@@ -73,6 +77,12 @@ def qc_image_data(dataset, **kwargs):
         if (ri == 3 and ci == 3) or ii == len(images) - 1:
             out_path = op.join('qc', 'fig%03d.png' % (fi + 1))
             save_and_close(out_path)
+            
+        # Save filename and collection id info in id_summary
+        col_id = op.basename(op.split(image)[0])
+        id_summary.loc[ii] = ['fig%03d'%(fi + 1), col_id, title]
+        
+    id_summary.to_csv(op.join('qc','id_summary.csv'))
 
 
 if __name__ == '__main__':
