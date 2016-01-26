@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
 from nilearn.image import index_img, iter_img
+from itertools import chain
 
 from nibabel_ext import NiftiImageWithTerms
 from nilearn_ext.datasets import fetch_neurovault
@@ -77,8 +78,28 @@ def get_dataset(dataset, fetch_terms=False, max_images=np.inf,
     """Retrieve & normalize dataset from nilearn"""
     # Download
     if dataset == 'neurovault':
+        
+        # Set image filters: The filt_dict contains metadata field for the key 
+        # and the desired entry for each field as the value. 
+        # Since neurovault metadata are not always filled, it also includes any 
+        # images with missing values for the any given field.
+        filt_dict = {'modality':'fMRI-BOLD','analysis_level':'group',
+                    'is_thresholded':False,'not_mni':False}
+        image_filters =()
+        for f in filt_dict:
+            fxn =  [lambda img: (img.get(f) or '') == '' or img[f] == filt_dict[f]]
+            image_filters = chain(image_filters, fxn)  # This part isn't working...:-(
+        
+        # Also remove bad collections 
+        bad_collects = [367,     # Contains a single image with a large area of uniform nonzero value
+                       1003,     # All three collections contain stat maps on parcellated
+                       1011,     # brains. Inclusion of these images is suspected to 
+                       1013]     # result in a weird-looking ICA component
+        col_ids = [-bid for bid in bad_collects]
+        
         images, term_scores = fetch_neurovault(
-            max_images=max_images, fetch_terms=fetch_terms, **kwargs)
+            max_images=max_images, fetch_terms=fetch_terms,
+            collection_ids=col_ids, image_filters=image_filters, **kwargs)
 
     elif dataset == 'abide':
         dataset = datasets.fetch_abide_pcp(
