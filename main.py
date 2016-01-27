@@ -26,7 +26,7 @@ def load_or_generate_components(hemi, out_dir='.', plot_dir=None,
     img_path = op.join(out_dir, '%s_ica_components.nii.gz' % hemi)
     if not kwargs.pop('force') and op.exists(img_path):
         img = NiftiImageWithTerms.from_filename(img_path)
-        
+
     else:
         img = generate_components(hemi=hemi, out_dir=out_dir, *args, **kwargs)
         png_dir = op.join(out_dir, 'png')
@@ -72,13 +72,11 @@ def mix_and_match_bilateral_components(**kwargs):
     return img
 
 
-def get_dataset(dataset, fetch_terms=False, max_images=np.inf,
-                **kwargs):
+def get_dataset(dataset, max_images=np.inf, **kwargs):
     """Retrieve & normalize dataset from nilearn"""
     # Download
     if dataset == 'neurovault':
-        images, term_scores = fetch_neurovault(
-            max_images=max_images, fetch_terms=fetch_terms, **kwargs)
+        images, term_scores = fetch_neurovault(max_images=max_images, **kwargs)
 
     elif dataset == 'abide':
         dataset = datasets.fetch_abide_pcp(
@@ -112,7 +110,8 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
 
     # Analyze images
     imgs = []
-    kwargs = dict(images=[im['local_path'] for im in images], n_components=n_components,
+    kwargs = dict(images=[im['local_path'] for im in images],
+                  n_components=n_components,
                   term_scores=term_scores, out_dir=nii_dir, plot_dir=plot_dir)
     for key in (k.lower() for k in keys):
         print("Running analyses on %s" % key)

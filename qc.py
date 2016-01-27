@@ -8,6 +8,7 @@ import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from nilearn.plotting import plot_stat_map
 from sklearn.externals.joblib import Memory
 
@@ -43,6 +44,14 @@ def qc_image_data(dataset, **kwargs):
     if op.exists(plot_dir):  # Delete old plots.
         shutil.rmtree(plot_dir)
 
+    # Dataframe to contain summary metadata for neurovault images
+    if dataset == 'neurovault':
+        fetch_summary = pd.DataFrame(
+            columns=('Figure #', 'col_id', 'image_id', 'name',
+                     'modality', 'map_type', 'analysis_level',
+                     'is_thresholded', 'not_mni', 'brain_coverage',
+                     'perc_bad_voxels', 'perc_voxels_outside'))
+
     for ii, image in enumerate(images):
         im_path = image['local_path']
         if im_path is None:
@@ -59,6 +68,15 @@ def qc_image_data(dataset, **kwargs):
         ax = fh.add_subplot(4, 4, pi)
         title = op.basename(im_path)
 
+        if dataset == 'neurovault':
+            fetch_summary.loc[ii] = [
+                'fig%03d' % (fi + 1), image.get('collection_id'),
+                image.get('id'), title, image.get('modality'),
+                image.get('map_type'), image.get('analysis_level'),
+                image.get('is_thresholded'), image.get('not_mni'),
+                image.get('brain_coverage'), image.get('perc_bad_voxels'),
+                image.get('perc_voxels_outside')]
+
         # Images may fail to be transformed, and are of different shapes,
         # so we need to trasnform one-by-one and keep track of failures.
         img = cast_img(im_path, dtype=np.float32)
@@ -71,8 +89,12 @@ def qc_image_data(dataset, **kwargs):
         plot_stat_map(img, axes=ax, black_bg=True, title=title, colorbar=False)
 
         if (ri == 3 and ci == 3) or ii == len(images) - 1:
-            out_path = op.join('qc', 'fig%03d.png' % (fi + 1))
+            out_path = op.join(plot_dir, 'fig%03d.png' % (fi + 1))
             save_and_close(out_path)
+
+    # Save fetch_summary
+    if dataset == 'neurovault':
+        fetch_summary.to_csv(op.join(plot_dir, 'fetch_summary.csv'))
 
 
 if __name__ == '__main__':

@@ -10,6 +10,29 @@ def fetch_neurovault(max_images=np.inf, query_server=True, fetch_terms=True,
                      map_types=['F map', 'T map', 'Z map'], **kwargs):
     """Give meaningful defaults, extra computations."""
 
+    # Set image filters: The filt_dict contains metadata field for the key
+    # and the desired entry for each field as the value.
+    # Since neurovault metadata are not always filled, it also includes any
+    # images with missing values for the any given field.
+    filt_dict = {'modality': 'fMRI-BOLD', 'analysis_level': 'group',
+                 'is_thresholded': False, 'not_mni': False}
+
+    def make_fun(key, val):
+        return lambda img: (img.get(key) or '') in ('', val)
+    image_filters = [make_fun(key, val) for key, val in filt_dict.items()]
+
+    # Also remove bad collections
+    bad_collects = [367,   # Single image w/ large uniform area value > 0
+                    1003,  # next three collections contain stat maps on
+                    1011,  # parcellated brains. Likely causes odd-looking
+                    1013]  # ICA component
+    col_ids = [-bid for bid in bad_collects]
+
+    kwargs['image_filters'] = (kwargs.get('image_filters', []) +
+                               image_filters)
+    kwargs['collection_ids'] = (kwargs.get('collection_ids', []) +
+                                col_ids)
+
     # Download matching images
     ss_all = datasets.fetch_neurovault(
         max_images=max_images, query_server=query_server, map_types=map_types,
