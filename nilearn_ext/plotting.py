@@ -44,7 +44,9 @@ def plot_components(ica_image, hemi='', out_dir=None,
 
     for ci, ic_img in enumerate(iter_img(ica_image)):
         # Threshhold and title
-        ic_thr = stats.scoreatpercentile(np.abs(ic_img.get_data()), 90)
+        # get nonzero part of the image for proper thresholding of r- or l- only component
+        nonzero_img = ic_img.get_data()[np.nonzero(ic_img.get_data())]
+        ic_thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ci, label=hemi)
         plot_stat_map(ic_img, threshold=ic_thr, colorbar=False,
                       title=title, black_bg=True, bg_img=bg_img)

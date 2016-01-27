@@ -26,10 +26,11 @@ def load_or_generate_components(hemi, out_dir='.', plot_dir=None,
     img_path = op.join(out_dir, '%s_ica_components.nii.gz' % hemi)
     if not kwargs.pop('force') and op.exists(img_path):
         img = NiftiImageWithTerms.from_filename(img_path)
-
+        
     else:
         img = generate_components(hemi=hemi, out_dir=out_dir, *args, **kwargs)
-        plot_components(img, hemi=hemi, out_dir=plot_dir)
+        png_dir = op.join(out_dir, 'png')
+        plot_components(img, hemi=hemi, out_dir=png_dir)
     return img
 
 
@@ -161,7 +162,7 @@ if __name__ == '__main__':
                         choices=['neurovault', 'abide', 'nyu'])
     parser.add_argument('--seed', nargs='?', type=int, default=42,
                         dest='random_state')
-    parser.add_argument('--scoring', nargs='?', default='scoring',
+    parser.add_argument('--scoring', nargs='?', default='l1norm',
                         choices=['l1norm', 'l2norm', 'correlation'])
     args = vars(parser.parse_args())
 
