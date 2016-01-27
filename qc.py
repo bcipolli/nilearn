@@ -44,7 +44,8 @@ def qc_image_data(dataset, **kwargs):
         shutil.rmtree(plot_dir)
 
     for ii, image in enumerate(images):
-        if image is None:
+        im_path = image['local_path']
+        if im_path is None:
             continue
 
         ri = ii % 4  # row i
@@ -56,11 +57,11 @@ def qc_image_data(dataset, **kwargs):
             fh = plt.figure(figsize=(16, 10))
             print('Plot %03d of %d' % (fi + 1, np.ceil(len(images) / 16.)))
         ax = fh.add_subplot(4, 4, pi)
-        title = op.basename(image)
+        title = op.basename(im_path)
 
         # Images may fail to be transformed, and are of different shapes,
         # so we need to trasnform one-by-one and keep track of failures.
-        img = cast_img(image, dtype=np.float32)
+        img = cast_img(im_path, dtype=np.float32)
         img = clean_img(img)
         try:
             img = masker.inverse_transform(masker.transform(img))

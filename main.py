@@ -79,18 +79,17 @@ def get_dataset(dataset, fetch_terms=False, max_images=np.inf,
     if dataset == 'neurovault':
         images, term_scores = fetch_neurovault(
             max_images=max_images, fetch_terms=fetch_terms, **kwargs)
-        images = [im['local_path'] for im in images]
 
     elif dataset == 'abide':
         dataset = datasets.fetch_abide_pcp(
             n_subjects=min(94, max_images), **kwargs)
-        images = dataset['func_preproc']
+        images = [{'local_path': p} for p in dataset['func_preproc']]
         term_scores = None
 
     elif dataset == 'nyu':
         dataset = datasets.fetch_nyu_rest(
             n_subjects=min(25, max_images), **kwargs)
-        images = dataset['func']
+        images = [{'local_path': p} for p in dataset['func']]
         term_scores = None
 
     else:
@@ -113,7 +112,7 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
 
     # Analyze images
     imgs = []
-    kwargs = dict(images=images, n_components=n_components,
+    kwargs = dict(images=[im['local_path'] for im in images], n_components=n_components,
                   term_scores=term_scores, out_dir=nii_dir, plot_dir=plot_dir)
     for key in (k.lower() for k in keys):
         print("Running analyses on %s" % key)
