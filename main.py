@@ -9,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
 from nilearn.image import index_img, iter_img
-from itertools import chain
 
 from nibabel_ext import NiftiImageWithTerms
 from nilearn_ext.datasets import fetch_neurovault
@@ -27,7 +26,7 @@ def load_or_generate_components(hemi, out_dir='.', plot_dir=None,
     img_path = op.join(out_dir, '%s_ica_components.nii.gz' % hemi)
     if not kwargs.pop('force') and op.exists(img_path):
         img = NiftiImageWithTerms.from_filename(img_path)
-        
+
     else:
         img = generate_components(hemi=hemi, out_dir=out_dir, *args, **kwargs)
         png_dir = op.join(out_dir, 'png')
@@ -73,33 +72,11 @@ def mix_and_match_bilateral_components(**kwargs):
     return img
 
 
-def get_dataset(dataset, fetch_terms=False, max_images=np.inf,
-                **kwargs):
+def get_dataset(dataset, max_images=np.inf, **kwargs):
     """Retrieve & normalize dataset from nilearn"""
     # Download
     if dataset == 'neurovault':
-        
-        # Set image filters: The filt_dict contains metadata field for the key 
-        # and the desired entry for each field as the value. 
-        # Since neurovault metadata are not always filled, it also includes any 
-        # images with missing values for the any given field.
-        filt_dict = {'modality':'fMRI-BOLD','analysis_level':'group',
-                    'is_thresholded':False,'not_mni':False}
-        image_filters =()
-        for f in filt_dict:
-            fxn =  [lambda img: (img.get(f) or '') == '' or img[f] == filt_dict[f]]
-            image_filters = chain(image_filters, fxn)  # This part isn't working...:-(
-        
-        # Also remove bad collections 
-        bad_collects = [367,     # Contains a single image with a large area of uniform nonzero value
-                       1003,     # All three collections contain stat maps on parcellated
-                       1011,     # brains. Inclusion of these images is suspected to 
-                       1013]     # result in a weird-looking ICA component
-        col_ids = [-bid for bid in bad_collects]
-        
-        images, term_scores = fetch_neurovault(
-            max_images=max_images, fetch_terms=fetch_terms,
-            collection_ids=col_ids, image_filters=image_filters, **kwargs)
+        images, term_scores = fetch_neurovault(max_images=max_images, **kwargs)
 
     elif dataset == 'abide':
         dataset = datasets.fetch_abide_pcp(
@@ -133,7 +110,8 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
 
     # Analyze images
     imgs = []
-    kwargs = dict(images=[im['local_path'] for im in images], n_components=n_components,
+    kwargs = dict(images=[im['local_path'] for im in images],
+                  n_components=n_components,
                   term_scores=term_scores, out_dir=nii_dir, plot_dir=plot_dir)
     for key in (k.lower() for k in keys):
         print("Running analyses on %s" % key)
