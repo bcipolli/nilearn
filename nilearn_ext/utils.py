@@ -16,6 +16,8 @@ def reorder_mat(mat):
 
     Output should be a reordered distance matrix, scaled so that the
     most similar entry gets a value of 1.0.
+    
+    The function also returns the new index for the reordered matrix for plotting.
     """
     # Find the most similar column,.
     most_similar = mat.min(axis=1)
@@ -41,4 +43,4 @@ def reorder_mat(mat):
             msi = filter(lambda ii: ii not in reidx,
                          np.argsort(norm_mat[pi]))[0]
         reidx[priority[ci]] = msi
-    return norm_mat.T[reidx].T
+    return norm_mat.T[reidx].T, reidx
