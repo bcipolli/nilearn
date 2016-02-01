@@ -138,4 +138,5 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
 
     # Saving
     if out_dir is not None:
-        save_and_close(out_path=op.join(out_dir, '%s_%s_simmat.png' % keys))
+        save_and_close(out_path=op.join(out_dir, '%s_%s_simmat%s.png' % (
+            keys[0], keys[1], '-normalized' if normalize else '')))

@@ -124,8 +124,9 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
     # Show confusion matrix
     score_mat = compare_components(images=imgs, labels=keys,
                                    scoring=scoring)
-    plot_comparison_matrix(score_mat, scoring=scoring, normalize=True,
-                           out_dir=plot_dir, keys=keys)
+    for normalize in [False, True]:
+        plot_comparison_matrix(score_mat, scoring=scoring, normalize=normalize,
+                               out_dir=plot_dir, keys=keys)
 
     # Get the requested images
     plot_component_comparisons(images=imgs, labels=keys,
