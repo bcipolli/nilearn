@@ -68,18 +68,6 @@ def generate_components(images, hemi, term_scores=None,
     fast_ica = memory.cache(fast_ica.fit)(X.T)
     ica_maps = memory.cache(fast_ica.transform)(X.T).T
 
-    # 2015/12/26 - sign matters for comparison, so don't do this!
-    # Pretty up the results
-    # for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
-    #     if -ic.min() > ic.max():
-    #         # Flip the map's sign for prettiness
-    #         ica_maps[idx] = -ic
-    #         ica_terms[idx] = -ic_terms
-
-    # Create image from maps, save terms to the image directly
-    ica_image = NiftiImageWithTerms.from_image(
-        masker.inverse_transform(ica_maps))
-
     if term_scores is not None:
         terms = term_scores.keys()
         term_matrix = np.asarray(term_scores.values())
@@ -87,6 +75,22 @@ def generate_components(images, hemi, term_scores=None,
         term_matrix = term_matrix[:, xformable_idx]  # terms x images
         # Don't use the transform method as it centers the data
         ica_terms = np.dot(term_matrix, fast_ica.components_.T).T
+
+    # 2015/12/26 - sign matters for comparison, so don't do this!
+    # 2016/02/01 - sign flipping is ok for R-L comparison, but RL concat
+    #              may break this.
+    # Pretty up the results
+    for idx, ic in enumerate(ica_maps):
+        if -ic.min() > ic.max():
+            # Flip the map's sign for prettiness
+            ica_maps[idx] = -ic
+            if term_scores:
+                ica_terms[idx] = -ica_terms[idx]
+
+    # Create image from maps, save terms to the image directly
+    ica_image = NiftiImageWithTerms.from_image(
+        masker.inverse_transform(ica_maps))
+    if term_scores:
         ica_image.terms = dict(zip(terms, ica_terms.T))
 
     # Write to disk
@@ -143,7 +147,7 @@ def compare_components(images, labels, scoring='l1norm',
             else:
                 if c1_data[c1i] is None:
                     c1_data[c1i] = comp1.get_data().ravel()
-                if c2_data[c1i] is None:
+                if c2_data[c2i] is None:
                     c2_data[c2i] = comp2.get_data().ravel()
 
             # Choose a scoring system.
