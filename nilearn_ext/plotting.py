@@ -44,7 +44,8 @@ def plot_components(ica_image, hemi='', out_dir=None,
 
     for ci, ic_img in enumerate(iter_img(ica_image)):
         # Threshhold and title
-        # get nonzero part of the image for proper thresholding of r- or l- only component
+        # get nonzero part of the image for proper thresholding of
+        # r- or l- only component
         nonzero_img = ic_img.get_data()[np.nonzero(ic_img.get_data())]
         ic_thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ci, label=hemi)
@@ -128,8 +129,8 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
     fh = plt.figure(figsize=(10, 10))
     ax = fh.gca()
     cax = ax.matshow(score_mat, vmin=vmin, vmax=vmax)
-    ax.set_xlabel("%s components"%(keys[1]))
-    ax.set_ylabel("%s components"%(keys[0]))
+    ax.set_xlabel("%s components" % (keys[1]))
+    ax.set_ylabel("%s components" % (keys[0]))
     ax.set_xticks(idx), ax.set_xticklabels(x_idx)
     ax.set_yticks(idx), ax.set_yticklabels(idx)
     if colorbar:
