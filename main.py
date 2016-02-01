@@ -18,13 +18,13 @@ from nilearn_ext.plotting import (plot_component_comparisons, plot_components,
                                   plot_comparison_matrix)
 
 
-def load_or_generate_components(hemi, out_dir='.', plot_dir=None,
+def load_or_generate_components(hemi, out_dir='.', plot_dir=None, force=False,
                                 *args, **kwargs):
     """ Load an image and return if it exists, otherwise compute via ICA"""
 
     # Only re-run if image doesn't exist.
     img_path = op.join(out_dir, '%s_ica_components.nii.gz' % hemi)
-    if not kwargs.pop('force') and op.exists(img_path):
+    if not force and op.exists(img_path):
         img = NiftiImageWithTerms.from_filename(img_path)
 
     else:
@@ -38,7 +38,6 @@ def mix_and_match_bilateral_components(**kwargs):
     """Run ICA on R,L; then match up components and
     and concatenate matched components into a full-brain picture.
     """
-    raise NotImplementedError("Ben needs to review this RL/LR code!")
 
     # LR image: do ICA for L, then R, then match up & combine
     # into a set of bilateral images.
@@ -116,7 +115,8 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
     for key in (k.lower() for k in keys):
         print("Running analyses on %s" % key)
         if key in ('rl', 'lr'):
-            imgs.append(mix_and_match_bilateral_components(**kwargs))
+            imgs.append(mix_and_match_bilateral_components(
+                force=force, random_state=random_state, **kwargs))
         else:
             imgs.append(load_or_generate_components(
                 hemi=key, force=force, random_state=random_state, **kwargs))
