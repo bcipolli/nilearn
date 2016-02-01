@@ -5,7 +5,7 @@
 import numpy as np
 
 
-def reorder_mat(mat):
+def reorder_mat(mat, normalize=True):
     """
     This function takes a distance matrix and reorders it such that
     the most similar entries (lowest distance) are found along the diagonal.
@@ -16,8 +16,9 @@ def reorder_mat(mat):
 
     Output should be a reordered distance matrix, scaled so that the
     most similar entry gets a value of 1.0.
-    
-    The function also returns the new index for the reordered matrix for plotting.
+
+    The function also returns the new index for the reordered matrix
+    for plotting.
     """
     # Find the most similar column,.
     most_similar = mat.min(axis=1)
@@ -27,7 +28,7 @@ def reorder_mat(mat):
     most_similar[most_similar == 0] = np.minimum(  # avoid div by zero
         mat[mat > 0].min() / 2, np.sqrt(mat.std()))  # some small default num
 
-    # Normalize the matrix.
+    # Normalize the matrix, for reordering.
     norm_mat = (mat.T / most_similar).T
 
     # Order from most to most certain.
@@ -43,4 +44,4 @@ def reorder_mat(mat):
             msi = filter(lambda ii: ii not in reidx,
                          np.argsort(norm_mat[pi]))[0]
         reidx[priority[ci]] = msi
-    return norm_mat.T[reidx].T, reidx
+    return norm_mat.T[reidx].T if normalize else mat.T[reidx].T, reidx

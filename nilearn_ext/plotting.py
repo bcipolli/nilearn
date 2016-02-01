@@ -119,14 +119,11 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
                            keys=('R', 'L'), vmax=None, colorbar=True):
 
     # Settings
-    if normalize:
-        score_mat, x_idx = reorder_mat(score_mat) 
-    else:
-        x_idx = np.arange(score_mat.shape[1])
-    idx = np.arange(score_mat.shape[0])  
-    vmax = vmax or min(score_mat.max(), 10)
+    score_mat, x_idx = reorder_mat(score_mat, normalize=normalize)
+    idx = np.arange(score_mat.shape[0])
+    vmax = vmax or min(score_mat.max(), 10 if normalize else np.inf)
     vmin = 1 if normalize else 0
-    
+
     # Plotting
     fh = plt.figure(figsize=(10, 10))
     ax = fh.gca()
