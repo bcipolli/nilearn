@@ -10,6 +10,42 @@ from nilearn.image import iter_img, reorder_img, new_img_like
 from nilearn.input_data import NiftiMasker
 from sklearn.externals.joblib import Memory
 
+from nilearn_ext.datasets import fetch_grey_matter_mask
+
+
+class GreyMatterNiftiMasker(NiftiMasker):
+    def __init__(self, sessions=None, smoothing_fwhm=None,
+                 standardize=False, detrend=False,
+                 low_pass=None, high_pass=None, t_r=None,
+                 target_affine=None, target_shape=None,
+                 mask_strategy='background',
+                 mask_args=None, sample_mask=None,
+                 memory_level=1, memory=Memory(cachedir=None),
+                 verbose=0):
+
+        # Create grey matter mask from mni template
+        target_img = fetch_grey_matter_mask()
+        grey_voxels = (target_img.get_data() > 0).astype(int)
+        mask_img = new_img_like(target_img, grey_voxels, copy_header=True)
+
+        super(GreyMatterNiftiMasker, self).__init__(
+            mask_img=mask_img,
+            target_affine=mask_img.affine,
+            target_shape=mask_img.shape,
+            sessions=sessions,
+            smoothing_fwhm=smoothing_fwhm,
+            standardize=standardize,
+            detrend=detrend,
+            low_pass=low_pass,
+            high_pass=high_pass,
+            t_r=t_r,
+            mask_strategy=mask_strategy,
+            mask_args=mask_args,
+            sample_mask=sample_mask,
+            memory_level=memory_level,
+            memory=memory,
+            verbose=verbose)
+
 
 class MniNiftiMasker(NiftiMasker):
     def __init__(self, sessions=None, smoothing_fwhm=None,
@@ -109,6 +145,9 @@ class HemisphereMasker(NiftiMasker):
             raise ValueError('Hemisphere must be left or right; '
                              'got value %s' % self.hemi)
 
+        mask_img = mask_img or nib.load(fetch_grey_matter_mask())
+        target_affine = mask_img.affine
+        target_shape = mask_img.shape
         super(HemisphereMasker, self).__init__(mask_img=mask_img,
                                                sessions=sessions,
                                                smoothing_fwhm=smoothing_fwhm,
