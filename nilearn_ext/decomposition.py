@@ -16,7 +16,7 @@ from scipy import stats
 
 from nibabel_ext import NiftiImageWithTerms
 from .image import cast_img, clean_img
-from .masking import MniHemisphereMasker, flip_img_lr, MniNiftiMasker
+from .masking import HemisphereMasker, flip_img_lr, GreyMatterNiftiMasker
 
 
 def generate_components(images, hemi, term_scores=None,
@@ -32,15 +32,15 @@ def generate_components(images, hemi, term_scores=None,
     # Reshape & mask images
     print("%s: Reshaping and masking images; may take time." % hemi)
     if hemi == 'both':
-        masker = MniNiftiMasker(target_affine=target_img.affine,
-                                target_shape=target_img.shape,
-                                memory=memory)
+        masker = GreyMatterNiftiMasker(target_affine=target_img.affine,
+                                       target_shape=target_img.shape,
+                                       memory=memory)
 
     else:  # R and L maskers
-        masker = MniHemisphereMasker(target_affine=target_img.affine,
-                                     target_shape=target_img.shape,
-                                     memory=memory,
-                                     hemisphere=hemi)
+        masker = HemisphereMasker(target_affine=target_img.affine,
+                                  target_shape=target_img.shape,
+                                  memory=memory,
+                                  hemisphere=hemi)
     masker = masker.fit()
 
     # Images may fail to be transformed, and are of different shapes,
@@ -121,8 +121,8 @@ def compare_components(images, labels, scoring='l1norm',
     c1_images = list(iter_img(images[0]))
     c2_images = list(iter_img(images[1]))
 
-    lh_masker = MniHemisphereMasker(hemisphere='L', memory=memory).fit()
-    rh_masker = MniHemisphereMasker(hemisphere='R', memory=memory).fit()
+    lh_masker = HemisphereMasker(hemisphere='L', memory=memory).fit()
+    rh_masker = HemisphereMasker(hemisphere='R', memory=memory).fit()
 
     for c1i, comp1 in enumerate(c1_images):
         for c2i, comp2 in enumerate(c2_images):

@@ -15,14 +15,12 @@ from sklearn.externals.joblib import Memory
 from main import get_dataset
 from nilearn_ext.datasets import fetch_neurovault
 from nilearn_ext.image import clean_img, cast_img
-from nilearn_ext.masking import MniNiftiMasker
+from nilearn_ext.masking import GreyMatterNiftiMasker
 from nilearn_ext.plotting import save_and_close
 
 
 def qc_image_metadata(**kwargs):
     images = fetch_neurovault(fetch_terms=False, **kwargs)[0]
-
-    print len(images)
 
     for key in sorted(images[0].keys()):
         unique_vals = np.unique([im.get(key, 'blue') for im in images])
@@ -40,7 +38,7 @@ def qc_image_data(dataset, **kwargs):
     plot_dir = 'qc'
 
     # Get ready
-    masker = MniNiftiMasker(memory=Memory(cachedir='nilearn_cache')).fit()
+    masker = GreyMatterNiftiMasker(memory=Memory(cachedir='nilearn_cache')).fit()
     if op.exists(plot_dir):  # Delete old plots.
         shutil.rmtree(plot_dir)
 

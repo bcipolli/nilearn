@@ -55,3 +55,11 @@ def fetch_neurovault(max_images=np.inf, query_server=True, fetch_terms=True,
             print('\t%-25s: %.2f' % (terms[term_idx], total_scores[term_idx]))
 
     return images, term_scores
+
+
+def fetch_grey_matter_mask():
+    url = 'https://github.com/NeuroVault/neurovault_analysis/raw/master/gm_mask.nii.gz'
+    mask = datasets.utils._fetch_files(
+        datasets.utils._get_dataset_dir('neurovault'),
+        (('gm_mask.nii.gz', url, {}),))[0]
+    return mask
