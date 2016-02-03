@@ -20,28 +20,36 @@ def reorder_mat(mat, normalize=True):
     The function also returns the new index for the reordered matrix
     for plotting.
     """
+
+    # Reorder rows
+    row_reidx = np.argsort([np.diff(np.sort(row))[0]/np.sort(row)[0]
+                           for row in mat])[::-1]
+    mat = mat[row_reidx]
+
     # Find the most similar column,.
     most_similar = mat.min(axis=1)
-    # Distance may be zero when compared to self; if so,
-    # use half of the second-closest entry. If all zeros, use
-    # some other small value. Why these values? Emmm... :)
-    most_similar[most_similar == 0] = np.minimum(  # avoid div by zero
-        mat[mat > 0].min() / 2, np.sqrt(mat.std()))  # some small default num
+    most_similar_idx = mat.argmin(axis=1)
 
-    # Normalize the matrix, for reordering.
-    norm_mat = (mat.T / most_similar).T
+    # Normalize the matrix, for column reordering.
+    # set minimum to zero
+    norm_mat = (mat.T - most_similar)  # transpose to work on cols
 
     # Order from most to most certain.
-    most_similar_idx = mat.argmin(axis=1)
     # Choose most similar by largest total distance score first
     # smallest second (hmmm... should this be smallest total distance
     # first? that would seem to indicate the most confusable).
-    priority = np.argsort(norm_mat.sum(axis=1))[::-1]
-    reidx = -1 * np.ones(priority.shape, dtype=int)  # new row index
+    priority = np.arange(len(row_reidx))
+    col_reidx = -1 * np.ones(priority.shape, dtype=int)  # new row index
     for ci, pi in enumerate(priority):
         msi = most_similar_idx[pi]
-        if msi in reidx:  # collision; find the next-best choice.
-            msi = filter(lambda ii: ii not in reidx,
-                         np.argsort(norm_mat[pi]))[0]
-        reidx[priority[ci]] = msi
-    return norm_mat.T[reidx].T if normalize else mat.T[reidx].T, reidx
+        if msi in col_reidx:  # collision; find the next-best choice.
+            msi = filter(lambda ii: ii not in col_reidx,
+                         np.argsort(norm_mat.T[pi]))[0]
+        col_reidx[pi] = msi
+
+    # Now reorder according to top-to-least match.
+    # import pdb; pdb.set_trace()
+    out_mat = (norm_mat if normalize else mat.T)[col_reidx].T
+    return out_mat, col_reidx, row_reidx  # col=x, row=y, thus the ordering
+
+# first reorder rows, from smallest sim to largest.

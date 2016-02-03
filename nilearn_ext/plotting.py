@@ -120,10 +120,10 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
                            keys=('R', 'L'), vmax=None, colorbar=True):
 
     # Settings
-    score_mat, x_idx = reorder_mat(score_mat, normalize=normalize)
+    score_mat, x_idx, y_idx = reorder_mat(score_mat, normalize=normalize)
     idx = np.arange(score_mat.shape[0])
-    vmax = vmax or min(score_mat.max(), 10 if normalize else np.inf)
-    vmin = 1 if normalize else 0
+    vmax = vmax  # or min(score_mat.max(), 10 if normalize else np.inf)
+    vmin = 0  # 1 if normalize else 0
 
     # Plotting
     fh = plt.figure(figsize=(10, 10))
@@ -132,7 +132,7 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
     ax.set_xlabel("%s components" % (keys[1]))
     ax.set_ylabel("%s components" % (keys[0]))
     ax.set_xticks(idx), ax.set_xticklabels(x_idx)
-    ax.set_yticks(idx), ax.set_yticklabels(idx)
+    ax.set_yticks(idx), ax.set_yticklabels(y_idx)
     if colorbar:
         fh.colorbar(cax)
 
