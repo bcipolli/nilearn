@@ -28,13 +28,17 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4):
     if terms is None:
         return '%s[%d]' % (label, ic_idx)
 
-    # Use the 4 terms weighted most as a title
+    # Use the 4 terms weighted most as a positive title, 4 terms 
+    # weighted least as a negative title and return both
+    
     ica_terms = np.asarray(terms.values()).T
     ic_terms = ica_terms[ic_idx]
     terms = np.asarray(terms.keys())
-    important_terms = terms[np.argsort(ic_terms)[-n_terms:]]
-    title = '%s[%d]: %s' % (
-        label, ic_idx, ', '.join(important_terms[::-1]))
+    positive_terms = terms[np.argsort(ic_terms)[-n_terms:]]
+    negative_terms = terms[np.argsort(ic_terms)[:n_terms]]
+    title = '%s[%d]: POS(%s) \n NEG(%s)' % (
+        label, ic_idx, ', '.join(positive_terms[::-1]),', '.join(negative_terms))
+    
     return title
 
 
@@ -49,7 +53,8 @@ def plot_components(ica_image, hemi='', out_dir=None,
         nonzero_img = ic_img.get_data()[np.nonzero(ic_img.get_data())]
         ic_thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ci, label=hemi)
-        plot_stat_map(ic_img, threshold=ic_thr, colorbar=False,
+        fh = plt.figure(figsize=(14, 6))
+        plot_stat_map(ic_img, axes=fh.gca(), threshold=ic_thr, colorbar=False,
                       title=title, black_bg=True, bg_img=bg_img)
 
         # Save images instead of displaying
@@ -85,13 +90,13 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
             title = _title_from_terms(terms=comp.terms, ic_idx=cis[1],
                                       label='R[%d] vs. L' % cis[0])
             fh = plt.figure(figsize=(14, 6))
-            plot_stat_map(comp, axes=fh.gca(), title=title)
+            plot_stat_map(comp, axes=fh.gca(), title=title, black_bg=True)
 
         else:
             # Show two images, one above the other.
 
             vmax = np.abs(np.asarray(dat)).max()  # Determine scale bars
-            fh = plt.figure(figsize=(14, 8))
+            fh = plt.figure(figsize=(14, 12))
 
             for ii in [0, 1]:  # Subplot per image
                 ax = fh.add_subplot(2, 1, ii + 1)
@@ -100,14 +105,15 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
                                           ic_idx=cis[ii], label=labels[ii])
 
                 if ii == 0:
-                    display = plot_stat_map(comp, axes=ax, title=title,  # noqa
-                                            symmetric_cbar=True, vmax=vmax)
+                    display = plot_stat_map(comp, axes=ax, title=title,    # noqa
+                                            black_bg=True, symmetric_cbar=True,
+                                            vmax=vmax)
                 else:
                     # use same cut coords
                     cut_coords = display.cut_coords  # noqa
                     display = plot_stat_map(comp, axes=ax, title=title,
-                                            symmetric_cbar=True, vmax=vmax,
-                                            display_mode='ortho',
+                                            black_bg=True, symmetric_cbar=True, 
+                                            vmax=vmax, display_mode='ortho',
                                             cut_coords=cut_coords)
 
         # Save images instead of displaying
