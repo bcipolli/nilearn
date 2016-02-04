@@ -23,8 +23,9 @@ class GreyMatterNiftiMasker(NiftiMasker):
                  memory_level=1, memory=Memory(cachedir=None),
                  verbose=0):
 
-        # Create grey matter mask from mni template
-        target_img = fetch_grey_matter_mask()
+        # Use grey matter mask computed for Neurovault analysis
+        # ('https://github.com/NeuroVault/neurovault_analysis/')
+        target_img = nib.load(fetch_grey_matter_mask())
         grey_voxels = (target_img.get_data() > 0).astype(int)
         mask_img = new_img_like(target_img, grey_voxels, copy_header=True)
 
