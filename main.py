@@ -29,8 +29,8 @@ def load_or_generate_components(hemi, out_dir='.', plot_dir=None, force=False,
 
     else:
         img = generate_components(hemi=hemi, out_dir=out_dir, *args, **kwargs)
-    png_dir = op.join(out_dir, 'png')
-    plot_components(img, hemi=hemi, out_dir=png_dir)
+        png_dir = op.join(out_dir, 'png')
+        plot_components(img, hemi=hemi, out_dir=png_dir)
     return img
 
 
