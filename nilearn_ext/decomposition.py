@@ -31,7 +31,7 @@ def generate_components(images, hemi, term_scores=None,
 
     # Reshape & mask images
     print("%s: Reshaping and masking images; may take time." % hemi)
-    if hemi == 'both':
+    if hemi == 'wb':
         masker = GreyMatterNiftiMasker(target_affine=target_img.affine,
                                        target_shape=target_img.shape,
                                        memory=memory)
