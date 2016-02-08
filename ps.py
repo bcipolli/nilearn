@@ -80,7 +80,7 @@ if __name__ == '__main__':
                         choices=['neurovault', 'abide', 'nyu'])
     parser.add_argument('--seed', nargs='?', type=int, default=42,
                         dest='random_state')
-    parser.add_argument('--scoring', nargs='?', default='scoring',
+    parser.add_argument('--scoring', nargs='?', default='l1norm',
                         choices=['l1norm', 'l2norm', 'correlation'])
     args = vars(parser.parse_args())
 
