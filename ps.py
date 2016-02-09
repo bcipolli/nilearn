@@ -4,7 +4,7 @@
 """
 How many ics? Find the sweet spot where the
 average dissimilarity between unilateral ('RL') and
-bilateral ('both') components is minimized.
+bilateral ('wb') components is minimized.
 
 Do that with a hard loop on the # of components, then
 plotting the mean dissimilarity (derived from the
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     warnings.simplefilter('error', RuntimeWarning)  # Detect bad NV images
 
     # Arg parsing
-    hemi_choices = ['R', 'L', 'both']
+    hemi_choices = ['R', 'L', 'wb']
     parser = ArgumentParser(description="Really?")
     parser.add_argument('key1', nargs='?', default='R', choices=hemi_choices)
     parser.add_argument('key2', nargs='?', default='L', choices=hemi_choices)
@@ -80,7 +80,7 @@ if __name__ == '__main__':
                         choices=['neurovault', 'abide', 'nyu'])
     parser.add_argument('--seed', nargs='?', type=int, default=42,
                         dest='random_state')
-    parser.add_argument('--scoring', nargs='?', default='scoring',
+    parser.add_argument('--scoring', nargs='?', default='l1norm',
                         choices=['l1norm', 'l2norm', 'correlation'])
     args = vars(parser.parse_args())
 

@@ -144,12 +144,12 @@ if __name__ == '__main__':
     warnings.simplefilter('error', RuntimeWarning)  # Detect bad NV images
 
     # Arg parsing
-    hemi_choices = ['R', 'L', 'RL', 'LR', 'both']
+    hemi_choices = ['R', 'L', 'RL', 'LR', 'wb']
     parser = ArgumentParser(description="Run ICA on individual hemispheres, "
                                         "or whole brain, then compare.\n\n"
                                         "R=right-only, L=left-only,\n"
                                         "RL=R,L ICA separate, compare as one\n"
-                                        "both=ICA & compare together")
+                                        "wb=ICA & compare together")
     parser.add_argument('key1', nargs='?', default='R', choices=hemi_choices)
     parser.add_argument('key2', nargs='?', default='L', choices=hemi_choices)
     parser.add_argument('--force', action='store_true', default=False)
