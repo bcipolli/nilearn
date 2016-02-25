@@ -65,7 +65,10 @@ def plot_components(ica_image, hemi='', out_dir=None,
 
 def plot_component_comparisons(images, labels, score_mat, out_dir=None):
     """ Uses the score_mat to find the closest components of each
-    image, then plots them side-by-side with equal colorbars.
+    image, then plots them side-by-side with equal colorbars. It finds the 
+    best match for every reference component (on y-axis of score-mat),
+    i.e. it allows non-one-to-one matching. If there are any unmatched component
+    (on x-axis) it also plots them with their best-matching ref component. 
     """
     # Be careful
     assert len(images) == 2
