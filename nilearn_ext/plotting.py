@@ -73,14 +73,29 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
     assert images[0].shape == images[1].shape
     n_components = images[0].shape[3]  # values @ 0 and 1 are the same
 
-    # Find cross-image mapping
+    # Find cross-image mapping...Note that this allows non-one-to-one matching
+    # i.e. for every given reference component (on y-axis) the best matching component
+    # is chosen, even if that component has been chosen before
     most_similar_idx = score_mat.argmin(axis=1)
-
+    
+    # Keep track of unmatched components (on x-axis)
+    unmatched = np.setdiff1d(np.arange(n_components), most_similar_idx)
+    unmatched_msi = score_mat.argmin(axis=0)
+    print unmatched, unmatched_msi
     print("Plotting results.")
-    for c1i in range(n_components):
-        cis = [c1i, most_similar_idx[c1i]]
-
-        comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)]
+    for c1i in range(n_components+len(unmatched)):
+        
+        if c1i < n_components:
+            cis = [c1i, most_similar_idx[c1i]]
+            png_name = '%s_%s_%s.png' % (labels[0], labels[1], c1i)
+       
+        # plot leftover components, matched to their closest ref component
+        else:
+            umi = unmatched[c1i-n_components]
+            cis = [unmatched_msi[umi], umi]
+            png_name = 'unmatched_%s_%s.png' % (labels[1], c1i - n_components) 
+        
+        comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)]    
         dat = [img.get_data() for img in comp_imgs]
 
         if ('R' in labels and 'L' in labels):
@@ -100,7 +115,7 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
 
             for ii in [0, 1]:  # Subplot per image
                 ax = fh.add_subplot(2, 1, ii + 1)
-                comp = index_img(images[ii], cis[ii])
+                comp = comp_imgs[ii]
                 title = _title_from_terms(terms=images[ii].terms,
                                           ic_idx=cis[ii], label=labels[ii])
 
@@ -118,8 +133,7 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
 
         # Save images instead of displaying
         if out_dir is not None:
-            save_and_close(out_path=op.join(
-                out_dir, '%s_%s_%s.png' % (labels[0], labels[1], c1i)), fh=fh)
+            save_and_close(out_path=op.join(out_dir, png_name), fh=fh)
 
 
 def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
