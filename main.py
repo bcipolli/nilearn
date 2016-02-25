@@ -94,7 +94,7 @@ def get_dataset(dataset, max_images=np.inf, **kwargs):
     return images, term_scores
 
 
-def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
+def main(dataset, n_components=20, max_images=np.inf,
          scoring='l1norm', query_server=True,
          force=False, nii_dir=None, plot_dir=None, random_state=42):
     """Compute components, then run requested comparisons"""
@@ -107,32 +107,33 @@ def main(dataset, keys=('R', 'L'), n_components=20, max_images=np.inf,
     images, term_scores = get_dataset(dataset, max_images=max_images,
                                       query_server=query_server)
 
-    # Analyze images
-    imgs = []
-    kwargs = dict(images=[im['local_path'] for im in images],
-                  n_components=n_components,
-                  term_scores=term_scores, out_dir=nii_dir, plot_dir=plot_dir)
-    for key in (k.lower() for k in keys):
-        print("Running analyses on %s" % key)
-        if key in ('rl', 'lr'):
-            imgs.append(mix_and_match_bilateral_components(
-                force=force, random_state=random_state, **kwargs))
-        else:
+    # Components are generated for R-, L-only, and whole brain images.
+    # R- and L- only components are then compared against wb.
+    comparisons = [('wb','r'),('wb','l')]
+    for comp in comparisons:
+        
+        # Load or generate components
+        imgs = []
+        kwargs = dict(images=[im['local_path'] for im in images],
+                      n_components=n_components, term_scores=term_scores, 
+                      out_dir=nii_dir, plot_dir=plot_dir)
+        for key in comp:
+            print("Running analyses on %s" % key)
             imgs.append(load_or_generate_components(
-                hemi=key, force=force, random_state=random_state, **kwargs))
+                    hemi=key, force=force, random_state=random_state, **kwargs))
 
-    # Show confusion matrix
-    score_mat = compare_components(images=imgs, labels=keys,
+        # Show confusion matrix:
+        score_mat = compare_components(images=imgs, labels=comp,
                                    scoring=scoring)
-    for normalize in [False, True]:
-        plot_comparison_matrix(score_mat, scoring=scoring, normalize=normalize,
-                               out_dir=plot_dir, keys=keys)
+        for normalize in [False, True]:
+            plot_comparison_matrix(score_mat, scoring=scoring, normalize=normalize,
+                               out_dir=plot_dir, keys=comp)
 
-    # Get the requested images
-    plot_component_comparisons(images=imgs, labels=keys,
+        # Show component comparisons
+        plot_component_comparisons(images=imgs, labels=comp,
                                score_mat=score_mat, out_dir=plot_dir)
 
-    return imgs, keys, score_mat
+    return imgs, comp, score_mat
 
 
 if __name__ == '__main__':
@@ -144,14 +145,11 @@ if __name__ == '__main__':
     warnings.simplefilter('error', RuntimeWarning)  # Detect bad NV images
 
     # Arg parsing
-    hemi_choices = ['R', 'L', 'RL', 'LR', 'wb']
     parser = ArgumentParser(description="Run ICA on individual hemispheres, "
                                         "or whole brain, then compare.\n\n"
                                         "R=right-only, L=left-only,\n"
                                         "RL=R,L ICA separate, compare as one\n"
                                         "wb=ICA & compare together")
-    parser.add_argument('key1', nargs='?', default='R', choices=hemi_choices)
-    parser.add_argument('key2', nargs='?', default='L', choices=hemi_choices)
     parser.add_argument('--force', action='store_true', default=False)
     parser.add_argument('--offline', action='store_true', default=False)
     parser.add_argument('--qc', action='store_true', default=False)
@@ -172,7 +170,6 @@ if __name__ == '__main__':
         qc_image_data(args['dataset'], query_server=query_server)
 
     # Run main
-    keys = args.pop('key1'), args.pop('key2')
-    main(keys=keys, query_server=query_server, **args)
+    main(query_server=query_server, **args)
 
     plt.show()
