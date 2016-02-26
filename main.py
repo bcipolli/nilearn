@@ -110,30 +110,34 @@ def main(dataset, n_components=20, max_images=np.inf,
     # Components are generated for R-, L-only, and whole brain images.
     # R- and L- only components are then compared against wb.
     comparisons = [('wb','R'),('wb','L')]
+    imgs = {}
+    score_mats = {}
     for comp in comparisons:
         
         # Load or generate components
-        imgs = []
         kwargs = dict(images=[im['local_path'] for im in images],
                       n_components=n_components, term_scores=term_scores, 
                       out_dir=nii_dir, plot_dir=plot_dir)
         for key in comp:
             print("Running analyses on %s" % key)
-            imgs.append(load_or_generate_components(
-                    hemi=key, force=force, random_state=random_state, **kwargs))
+            imgs[key] = (load_or_generate_components(hemi=key, force=force, 
+                                                random_state=random_state, **kwargs))
 
         # Show confusion matrix:
-        score_mat = compare_components(images=imgs, labels=comp,
-                                   scoring=scoring)
+        img_pair = [imgs[comp[0]], imgs[comp[1]]]
+        score_mat = compare_components(images=img_pair, labels=comp, 
+                                    scoring=scoring)
         for normalize in [False, True]:
             plot_comparison_matrix(score_mat, scoring=scoring, normalize=normalize,
                                out_dir=plot_dir, keys=comp)
 
         # Show component comparisons
-        plot_component_comparisons(images=imgs, labels=comp,
+        plot_component_comparisons(images=img_pair, labels=comp,
                                score_mat=score_mat, out_dir=plot_dir)
+                               
+        score_mats[comp] = score_mat
 
-    return imgs, comp, score_mat
+    return imgs, score_mat
 
 
 if __name__ == '__main__':
