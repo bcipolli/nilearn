@@ -109,7 +109,7 @@ def main(dataset, n_components=20, max_images=np.inf,
 
     # Components are generated for R-, L-only, and whole brain images.
     # R- and L- only components are then compared against wb.
-    comparisons = [('wb','r'),('wb','l')]
+    comparisons = [('wb','R'),('wb','L')]
     for comp in comparisons:
         
         # Load or generate components

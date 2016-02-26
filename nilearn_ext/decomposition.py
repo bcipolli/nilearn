@@ -108,6 +108,7 @@ def compare_components(images, labels, scoring='l1norm',
     assert len(labels) == 2
     assert images[0].shape == images[1].shape
     n_components = images[0].shape[3]  # values @ 0 and 1 are the same
+    labels = (l.upper() for l in labels) # make input labels case insensitive
 
     print("Loading images.")
     for img in images:
