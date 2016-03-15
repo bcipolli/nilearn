@@ -112,6 +112,7 @@ def main(dataset, n_components=20, max_images=np.inf,
     comparisons = [('wb','R'),('wb','L')]
     imgs = {}
     score_mats = {}
+    msi = {}
     for comp in comparisons:
         
         # Load or generate components
@@ -127,6 +128,7 @@ def main(dataset, n_components=20, max_images=np.inf,
         img_pair = [imgs[comp[0]], imgs[comp[1]]]
         score_mat = compare_components(images=img_pair, labels=comp, 
                                     scoring=scoring)
+                
         for normalize in [False, True]:
             plot_comparison_matrix(score_mat, scoring=scoring, normalize=normalize,
                                out_dir=plot_dir, keys=comp)
@@ -134,10 +136,52 @@ def main(dataset, n_components=20, max_images=np.inf,
         # Show component comparisons
         plot_component_comparisons(images=img_pair, labels=comp,
                                score_mat=score_mat, out_dir=plot_dir)
-                               
+        
+        # Store score_mat and most similar index for R- and L- components using wb as a ref                       
         score_mats[comp] = score_mat
+        msi[comp[1]] = score_mat.argmin(axis=1)
+    
+    # Now match up R and L components based on their match against wb components.
+    # Mix R and L
+    terms = imgs['R'].terms.keys()
+    term_scores = []
+    rl_imgs = []
+    for i in range(n_components):
+        rci, lci = msi['R'][i], msi['L'][i]
+        print "RL %s: R %s and L %s"%(i, rci, lci)
+        R_comp_img = index_img(imgs['R'], rci)
+        L_comp_img = index_img(imgs['L'], lci)  # noqa
+        # combine images
+        rl_imgs.append(join_bilateral_rois(R_comp_img, L_comp_img))
+        # combine terms
+        if terms:
+            term_scores.append([(imgs['R'].terms[t][rci] +
+                                 imgs['L'].terms[t][lci]) / 2
+                                for t in terms])
 
-    return imgs, score_mat
+    # Squash into single image
+    concat_img = nib.concat_images(rl_imgs)
+    if terms:
+        concat_img.terms = dict(zip(terms, np.asarray(term_scores).T))
+        
+    # Now compare the concatenated image to bilateral components
+    comp = ('wb', 'RL')
+    img_pair = [imgs['wb'], concat_img]
+    score_mat = compare_components(images= img_pair, 
+                                labels=comp, scoring=scoring)
+                
+    for normalize in [False, True]:
+        plot_comparison_matrix(score_mat, scoring=scoring, normalize=normalize,
+                               out_dir=plot_dir, keys=comp)
+
+    # Show component comparisons
+    plot_component_comparisons(images=img_pair, labels=comp,
+                               score_mat=score_mat, out_dir=plot_dir)
+        
+    # Store score_mat                       
+    score_mats[comp] = score_mat
+
+    return imgs, score_mats
 
 
 if __name__ == '__main__':
