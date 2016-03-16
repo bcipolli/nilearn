@@ -54,7 +54,7 @@ def plot_components(ica_image, hemi='', out_dir=None,
         ic_thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ci, label=hemi)
         fh = plt.figure(figsize=(14, 6))
-        plot_stat_map(ic_img, axes=fh.gca(), threshold=ic_thr, colorbar=False,
+        plot_stat_map(ic_img, axes=fh.gca(), threshold=ic_thr, colorbar=True,
                       title=title, black_bg=True, bg_img=bg_img)
 
         # Save images instead of displaying
@@ -84,7 +84,7 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
     # Keep track of unmatched components (on x-axis)
     unmatched = np.setdiff1d(np.arange(n_components), most_similar_idx)
     unmatched_msi = score_mat.argmin(axis=0)
-    print unmatched, unmatched_msi
+    
     print("Plotting results.")
     for c1i in range(n_components+len(unmatched)):
         
