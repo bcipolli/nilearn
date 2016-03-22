@@ -37,12 +37,12 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
     
     if flip_sign:
         positive_terms = terms[np.argsort(ic_terms)[:n_terms]]
-        negative_terms = terms[np.argsort(ic_terms)[-n_terms:]]
+        negative_terms = terms[np.argsort(ic_terms)[:-(n_terms+1):-1]]
     else:   
-        positive_terms = terms[np.argsort(ic_terms)[-n_terms:]]
+        positive_terms = terms[np.argsort(ic_terms)[:-(n_terms+1):-1]]
         negative_terms = terms[np.argsort(ic_terms)[:n_terms]]
     title = '%s[%d]: POS(%s) \n NEG(%s)' % (
-        label, ic_idx, ', '.join(positive_terms[::-1]),', '.join(negative_terms))
+        label, ic_idx, ', '.join(positive_terms),', '.join(negative_terms))
     
     return title
 
