@@ -8,7 +8,7 @@ import nibabel as nib
 import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
-from nilearn.image import index_img, iter_img
+from nilearn.image import index_img, iter_img, math_img
 
 from nibabel_ext import NiftiImageWithTerms
 from nilearn_ext.datasets import fetch_neurovault
@@ -111,7 +111,7 @@ def main(dataset, n_components=20, max_images=np.inf,
     # R- and L- only components are then compared against wb.
     comparisons = [('wb','R'),('wb','L')]
     imgs = {}
-    score_mats = {}
+    mats = {}
     msi = {}
     for comp in comparisons:
         
@@ -126,8 +126,10 @@ def main(dataset, n_components=20, max_images=np.inf,
 
         # Show confusion matrix:
         img_pair = [imgs[comp[0]], imgs[comp[1]]]
-        score_mat = compare_components(images=img_pair, labels=comp, 
-                                    scoring=scoring)
+        
+        # The sign_mat contains signs that gave the best score for the comparison
+        score_mat, sign_mat = compare_components(images=img_pair, labels=comp, 
+                                            scoring=scoring)
                 
         for normalize in [False, True]:
             plot_comparison_matrix(score_mat, scoring=scoring, normalize=normalize,
@@ -135,28 +137,37 @@ def main(dataset, n_components=20, max_images=np.inf,
 
         # Show component comparisons
         plot_component_comparisons(images=img_pair, labels=comp,
-                               score_mat=score_mat, out_dir=plot_dir)
+                               score_mat=score_mat, sign_mat=sign_mat, out_dir=plot_dir)
         
         # Store score_mat and most similar index for R- and L- components using wb as a ref                       
-        score_mats[comp] = score_mat
         msi[comp[1]] = score_mat.argmin(axis=1)
+        mats[comp] = (score_mat, sign_mat)
     
     # Now match up R and L components based on their match against wb components.
     # Mix R and L
     terms = imgs['R'].terms.keys()
+    [sign_r, sign_l] = [mats[comp][1] for comp in comparisons]
     term_scores = []
     rl_imgs = []
     for i in range(n_components):
         rci, lci = msi['R'][i], msi['L'][i]
         print "RL %s: R %s and L %s"%(i, rci, lci)
+        
         R_comp_img = index_img(imgs['R'], rci)
-        L_comp_img = index_img(imgs['L'], lci)  # noqa
+        L_comp_img = index_img(imgs['L'], lci) 
+        sign = 1
+        
+        # flip the sign of L image if the signs don't match
+        if sign_r[i,rci] != sign_l[i,lci]:
+            L_comp_img = math_img("-img", img = L_comp_img)
+            sign *= -1
+
         # combine images
         rl_imgs.append(join_bilateral_rois(R_comp_img, L_comp_img))
         # combine terms
         if terms:
             term_scores.append([(imgs['R'].terms[t][rci] +
-                                 imgs['L'].terms[t][lci]) / 2
+                                (sign)*imgs['L'].terms[t][lci]) / 2
                                 for t in terms])
 
     # Squash into single image
@@ -165,9 +176,12 @@ def main(dataset, n_components=20, max_images=np.inf,
         concat_img.terms = dict(zip(terms, np.asarray(term_scores).T))
         
     # Now compare the concatenated image to bilateral components
+    # Note that by definition diagnal components will be matched, since we concatenated
+    # R and L based on their best match with wb component...but this will give us complete
+    # score_mat and flipping information
     comp = ('wb', 'RL')
     img_pair = [imgs['wb'], concat_img]
-    score_mat = compare_components(images= img_pair, 
+    score_mat, sign_mat = compare_components(images= img_pair, 
                                 labels=comp, scoring=scoring)
                 
     for normalize in [False, True]:
@@ -176,12 +190,12 @@ def main(dataset, n_components=20, max_images=np.inf,
 
     # Show component comparisons
     plot_component_comparisons(images=img_pair, labels=comp,
-                               score_mat=score_mat, out_dir=plot_dir)
+                               score_mat=score_mat, sign_mat=sign_mat, out_dir=plot_dir)
         
     # Store score_mat                       
-    score_mats[comp] = score_mat
+    mats[comp] = (score_mat, sign_mat)
 
-    return imgs, score_mats
+    return imgs, mats
 
 
 if __name__ == '__main__':

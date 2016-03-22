@@ -8,7 +8,7 @@ import os.path as op
 import numpy as np
 from matplotlib import pyplot as plt
 from nilearn import datasets
-from nilearn.image import iter_img, index_img, new_img_like
+from nilearn.image import iter_img, index_img, new_img_like, math_img
 from nilearn.plotting import plot_stat_map
 from scipy import stats
 
@@ -23,7 +23,7 @@ def save_and_close(out_path, fh=None):
     plt.close(fh)
 
 
-def _title_from_terms(terms, ic_idx, label=None, n_terms=4):
+def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
 
     if terms is None:
         return '%s[%d]' % (label, ic_idx)
@@ -34,8 +34,13 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4):
     ica_terms = np.asarray(terms.values()).T
     ic_terms = ica_terms[ic_idx]
     terms = np.asarray(terms.keys())
-    positive_terms = terms[np.argsort(ic_terms)[-n_terms:]]
-    negative_terms = terms[np.argsort(ic_terms)[:n_terms]]
+    
+    if flip_sign:
+        positive_terms = terms[np.argsort(ic_terms)[:n_terms]]
+        negative_terms = terms[np.argsort(ic_terms)[-n_terms:]]
+    else:   
+        positive_terms = terms[np.argsort(ic_terms)[-n_terms:]]
+        negative_terms = terms[np.argsort(ic_terms)[:n_terms]]
     title = '%s[%d]: POS(%s) \n NEG(%s)' % (
         label, ic_idx, ', '.join(positive_terms[::-1]),', '.join(negative_terms))
     
@@ -63,12 +68,17 @@ def plot_components(ica_image, hemi='', out_dir=None,
                 out_dir, '%s_component_%i.png' % (hemi, ci)))
 
 
-def plot_component_comparisons(images, labels, score_mat, out_dir=None):
-    """ Uses the score_mat to find the closest components of each
-    image, then plots them side-by-side with equal colorbars. It finds the 
-    best match for every reference component (on y-axis of score-mat),
-    i.e. it allows non-one-to-one matching. If there are any unmatched component
-    (on x-axis) it also plots them with their best-matching ref component. 
+def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None):
+    """ 
+    Uses the score_mat to find the closest components of each image, then plots 
+    them side-by-side with equal colorbars. It finds the best match for every reference 
+    component (on y-axis of score-mat), i.e. it allows non-one-to-one matching. 
+    
+    The sign_mat is used to check the sign flipping of the component comparisons, 
+    and flips the matching component if necessary.
+    
+    If there are any unmatched component (on x-axis) it also plots them with their 
+    best-matching ref component. 
     """
     # Be careful
     assert len(images) == 2
@@ -98,11 +108,19 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
             cis = [unmatched_msi[umi], umi]
             png_name = 'unmatched_%s_%s.png' % (labels[1], c1i - n_components) 
         
-        comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)]    
+        comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)] 
+        
+        # flip the sign if sign_mat for the corresponding comparison is -1
+        if sign_mat[cis[0],cis[1]] == -1:
+            comp_imgs[1] = math_img("-img", img = comp_imgs[1]) 
+            flip_signs = (False, True)
+        else:
+            flip_signs = (False, False)  
         dat = [img.get_data() for img in comp_imgs]
 
         if ('R' in labels and 'L' in labels):
             # Combine left and right image, show just one.
+            # need to think about what to do with the terms here when flipping one image..
             comp = new_img_like(comp_imgs[0], data=np.sum(dat, axis=0),
                                 copy_header=True)
             title = _title_from_terms(terms=comp.terms, ic_idx=cis[1],
@@ -119,8 +137,9 @@ def plot_component_comparisons(images, labels, score_mat, out_dir=None):
             for ii in [0, 1]:  # Subplot per image
                 ax = fh.add_subplot(2, 1, ii + 1)
                 comp = comp_imgs[ii]
-                title = _title_from_terms(terms=images[ii].terms,
-                                          ic_idx=cis[ii], label=labels[ii])
+                
+                title = _title_from_terms(terms=images[ii].terms, ic_idx=cis[ii], 
+                                    label=labels[ii], flip_sign = flip_signs[ii])
 
                 if ii == 0:
                     display = plot_stat_map(comp, axes=ax, title=title,    # noqa
@@ -145,7 +164,7 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
     # Settings
     score_mat, x_idx, y_idx = reorder_mat(score_mat, normalize=normalize)
     idx = np.arange(score_mat.shape[0])
-    vmax = vmax  # or min(score_mat.max(), 10 if normalize else np.inf)
+    vmax = vmax  # or min(scores.max(), 10 if normalize else np.inf)
     vmin = 0  # 1 if normalize else 0
 
     # Plotting
