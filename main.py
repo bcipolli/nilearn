@@ -111,7 +111,8 @@ def main(dataset, n_components=20, max_images=np.inf,
     # R- and L- only components are then compared against wb.
     comparisons = [('wb','R'),('wb','L')]
     imgs = {}
-    mats = {}
+    score_mats = {}
+    sign_mats = {}
     msi = {}
     for comp in comparisons:
         
@@ -141,12 +142,13 @@ def main(dataset, n_components=20, max_images=np.inf,
         
         # Store score_mat and most similar index for R- and L- components using wb as a ref                       
         msi[comp[1]] = score_mat.argmin(axis=1)
-        mats[comp] = (score_mat, sign_mat)
+        score_mats[comp] = score_mat
+        sign_mats[comp] = sign_mat
     
     # Now match up R and L components based on their match against wb components.
     # Mix R and L
     terms = imgs['R'].terms.keys()
-    [sign_r, sign_l] = [mats[comp][1] for comp in comparisons]
+    [sign_r, sign_l] = [sign_mats[comp] for comp in comparisons]
     term_scores = []
     rl_imgs = []
     for i in range(n_components):
@@ -193,10 +195,11 @@ def main(dataset, n_components=20, max_images=np.inf,
     plot_component_comparisons(images=img_pair, labels=comp,
                                score_mat=score_mat, sign_mat=sign_mat, out_dir=plot_dir)
         
-    # Store score_mat                       
-    mats[comp] = (score_mat, sign_mat)
+    # Store score_mat and sign_mat                      
+    score_mats[comp] = score_mat
+    sign_mats[comp] = sign_mat
 
-    return imgs, mats
+    return imgs, score_mats, sign_mats
 
 
 if __name__ == '__main__':
