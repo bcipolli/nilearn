@@ -174,6 +174,7 @@ def main(dataset, n_components=20, max_images=np.inf,
     concat_img = nib.concat_images(rl_imgs)
     if terms:
         concat_img.terms = dict(zip(terms, np.asarray(term_scores).T))
+    imgs['RL'] = concat_img
         
     # Now compare the concatenated image to bilateral components
     # Note that by definition diagnal components will be matched, since we concatenated

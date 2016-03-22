@@ -120,7 +120,7 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
 
         if ('R' in labels and 'L' in labels):
             # Combine left and right image, show just one.
-            # need to think about what to do with the terms here when flipping one image..
+            # terms are not combined here
             comp = new_img_like(comp_imgs[0], data=np.sum(dat, axis=0),
                                 copy_header=True)
             title = _title_from_terms(terms=comp.terms, ic_idx=cis[1],
