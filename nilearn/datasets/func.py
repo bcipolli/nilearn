@@ -1774,8 +1774,7 @@ def _get_nv_collections_json(url, data_dir, overwrite=False, query_server=True,
     collection_dirs = [os.path.basename(p)
                        for p in glob.glob(os.path.join(data_dir, '*'))
                        if os.path.isdir(p)]
-    collection_dirs = sorted(collection_dirs,
-                             lambda k1, k2: int(k1) - int(k2))
+    collection_dirs = sorted(collection_dirs, key=lambda k: int(k))
 
     coll_meta = dict(results=[], next=None)
     for cdir in collection_dirs:
