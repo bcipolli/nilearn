@@ -110,6 +110,8 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
     
     If there are any unmatched component (on x-axis) it also plots them with their 
     best-matching ref component. 
+    
+    It plots and saves component comparisons and returns matched and unmatched indices.
     """
     # Be careful
     assert len(images) == 2
@@ -188,6 +190,7 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
         if out_dir is not None:
             save_and_close(out_path=op.join(out_dir, png_name), fh=fh)
 
+    return most_similar_idx, unmatched
 
 def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
                            keys=('R', 'L'), vmax=None, colorbar=True):

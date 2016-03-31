@@ -112,9 +112,8 @@ def main(dataset, n_components=20, max_images=np.inf,
     # R- and L- only components are then compared against wb.
     comparisons = [('wb','R'),('wb','L')]
     imgs = {}
-    score_mats = {}
-    sign_mats = {}
-    msi = {}
+    score_mats, sign_mats = {}, {}
+    msi, umi = {}, {}
     for comp in comparisons:
         
         # Load or generate components
@@ -138,11 +137,11 @@ def main(dataset, n_components=20, max_images=np.inf,
                                out_dir=plot_dir, keys=comp)
 
         # Show component comparisons
-        plot_component_comparisons(images=img_pair, labels=comp,
-                               score_mat=score_mat, sign_mat=sign_mat, out_dir=plot_dir)
+        most_similar_idx, unmatched_idx = plot_component_comparisons(images=img_pair, labels=comp,
+                                    score_mat=score_mat, sign_mat=sign_mat, out_dir=plot_dir)
         
         # Store score_mat and most similar index for R- and L- components using wb as a ref                       
-        msi[comp[1]] = score_mat.argmin(axis=1)
+        msi[comp[1]], umi[comp[1]] = most_similar_idx, unmatched_idx
         score_mats[comp] = score_mat
         sign_mats[comp] = sign_mat
     
@@ -200,7 +199,7 @@ def main(dataset, n_components=20, max_images=np.inf,
     score_mats[comp] = score_mat
     sign_mats[comp] = sign_mat
 
-    return imgs, score_mats, sign_mats
+    return imgs, score_mats, umi
 
 
 if __name__ == '__main__':
