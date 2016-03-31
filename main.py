@@ -15,7 +15,7 @@ from nilearn_ext.datasets import fetch_neurovault
 from nilearn_ext.decomposition import compare_components, generate_components
 from nilearn_ext.masking import join_bilateral_rois
 from nilearn_ext.plotting import (plot_component_comparisons, plot_components,
-                                  plot_comparison_matrix)
+                                  plot_components_summary, plot_comparison_matrix)
 
 
 def load_or_generate_components(hemi, out_dir='.', plot_dir=None, force=False,
@@ -31,6 +31,7 @@ def load_or_generate_components(hemi, out_dir='.', plot_dir=None, force=False,
         img = generate_components(hemi=hemi, out_dir=out_dir, *args, **kwargs)
         png_dir = op.join(out_dir, 'png')
         plot_components(img, hemi=hemi, out_dir=png_dir)
+        plot_components_summary(img, hemi=hemi, out_dir=png_dir)
     return img
 
 

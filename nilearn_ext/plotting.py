@@ -66,6 +66,37 @@ def plot_components(ica_image, hemi='', out_dir=None,
         if out_dir is not None:
             save_and_close(out_path=op.join(
                 out_dir, '%s_component_%i.png' % (hemi, ci)))
+                
+def plot_components_summary(ica_image, hemi='', out_dir=None,
+                    bg_img=datasets.load_mni152_template()):
+    print("Plotting %s components summary..." % hemi)
+    
+    n_components = ica_image.get_data().shape[3]
+    for ii, ic_img in enumerate(iter_img(ica_image)):
+        
+        ri = ii % 5  # row i
+        ci = (ii / 5) % 5  # column i
+        pi = ii % 25 + 1  # plot i
+        fi = ii / 25  # figure i
+
+        if ri == 0 and ci == 0:
+            fh = plt.figure(figsize=(30, 20))
+            print('Plot %03d of %d' % (fi + 1, np.ceil(n_components / 25.)))
+        ax = fh.add_subplot(5, 5, pi)
+        
+        # Threshhold and title
+        # get nonzero part of the image for proper thresholding of
+        # r- or l- only component
+        nonzero_img = ic_img.get_data()[np.nonzero(ic_img.get_data())]
+        ic_thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
+        title = _title_from_terms(terms=ica_image.terms, ic_idx=ii, label=hemi)
+        
+        plot_stat_map(ic_img, axes=ax, threshold=ic_thr, colorbar=True,
+                      title=title, black_bg=True, bg_img=bg_img)
+                      
+        if (ri == 4 and ci == 4) or ii == n_components - 1:
+            out_path = op.join(out_dir, '%s_components_summary%02d.png' % (hemi, fi + 1))
+            save_and_close(out_path)
 
 
 def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None):
