@@ -28,6 +28,7 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
                memory = Memory(cachedir='nilearn_cache'), **kwargs):
     score_mats = []
     wb_images = []
+    umis = []
     out_dir = op.join('ica_imgs', dataset)
     for c in components:
         if noSimScore: # only calculate sparsity and HPI using ICA images (i.e. do not run main.py)
@@ -38,14 +39,46 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
             wb_images.append(img)
         else:
             print("Running analysis with %d components." % c)
-            img_d, score_mats_d, sign_mat_d = main(n_components=c, dataset=dataset,
+            img_d, score_mats_d, umi_d = main(n_components=c, dataset=dataset,
                                         scoring=scoring, **kwargs)
             score_mats.append(score_mats_d)
             wb_images.append(img_d['wb'])
+            umis.append(umi_d)
 
-    # Now we have all the scores; now get values of interest.
-    # 1) mean dissimilarity scores for the best match pairs
-    sim_scores = None if noSimScore else {key:[] for key in score_mats[0]}
+    # Now we have all the scores; now get values of interest and plot.
+    
+    if not noSimScore:
+        # 1) mean dissimilarity scores for the best match pairs
+        sim_scores = {key:[] for key in score_mats[0]}
+        um_R, um_L = [], []             # Number of unmatched R and L components
+        
+        for sm_d, umi_d in zip(score_mats, umis):
+        
+            for key in sim_scores:
+                sm = sm_d[key]
+                sm[sm == 0] = np.inf  # is this necessary??
+                sim_scores[key].append(sm.min(axis=1).mean())
+                
+            num_unmatched_R, num_unmatched_L = [len(umi_d[k]) for k in ['R','L']]
+            um_R.append(num_unmatched_R)
+            um_L.append(num_unmatched_L)
+        
+        fh = plt.figure(figsize=(10, 10))
+        ax1 = fh.gca()
+        ax1.plot(components, np.asarray(sim_scores.values()).T)
+        ax1.legend(sim_scores.keys())
+        ax1.set_xlabel("# of components"), ax1.set_ylabel("mean %s scores" % scoring)
+        ax2 = ax1.twinx()
+        ax2.plot(components, um_R, 'r--', label = 'unmatched R' )
+        ax2.plot(components, um_L, 'b--', label = 'unmatched L' )
+        ax2.set_ylabel("# of unmatched R- or L- components")
+        ax2.set_ylim(ymax = (max(max(um_R),max(um_L))+9)//10*10)
+        ax2.legend(loc = 4)
+        plt.title("Average dissimilarity scores for the best-match pairs")
+        
+        out_path = op.join(out_dir, '%s_simscores.png' % scoring)
+        save_and_close(out_path, fh=fh)
+    
     
     # 2) overall sparsity of the wb components
     sparsity_levels = {'pos_01':0.01,'pos_005':0.005,'neg_01':-0.01,'neg_005':-0.005}
@@ -56,26 +89,7 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
     # calculated from wb components  
     hemi_maskers = [HemisphereMasker(hemisphere=hemi, memory=memory).fit() for hemi in ['R','L']]
     x = [[c]*c for c in components]
-    y1, y2, size1, size2 = [], [], [], []
-    
-    if not noSimScore:
-        # Plot 1)
-        for sm_d in score_mats:
-        
-            for key in sim_scores:
-                sm = sm_d[key]
-                sm[sm == 0] = np.inf  # is this necessary??
-                sim_scores[key].append(sm.min(axis=1).mean())
-        
-        fh = plt.figure(figsize=(10, 10))
-        fh.gca().plot(components, np.asarray(sim_scores.values()).T)
-        fh.gca().legend(sim_scores.keys())
-        plt.title("Average dissimilarity scores for the best-match pairs")
-        plt.xlabel("# of components"), plt.ylabel("mean %s scores" % scoring)
-
-        out_path = op.join(out_dir, '%s_simscores.png' % scoring)
-        save_and_close(out_path, fh=fh)
-        
+    y1, y2, size1, size2 = [], [], [], []    
     for img in wb_images:    
         # 2) get mean sparsity per component
         for key in wb_sparsity:
