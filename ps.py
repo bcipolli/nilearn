@@ -86,29 +86,28 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
     # 2) overall sparsity of the wb components
     sparsity_levels = {'pos_01':0.01,'pos_005':0.005,'neg_01':-0.01,'neg_005':-0.005}
     sparsity_styles = {'pos_01':('b','-'),'pos_005':('b','--'),'neg_01':('r','-'),'neg_005':('r','--')}
-    # For each component type, store mean and SEM for each sparsity level
-    sparsity = {k:{s:([],[]) for s in sparsity_levels} for k in images_key}  
+    # For each component type, store sparsity values for each sparsity level
+    sparsity = {k:{s:[] for s in sparsity_levels} for k in images_key}  
     
     # 3) hemispheric participation index (HPI): (R-L)/(R+L) for # of voxels>0.005
     # calculated from wb components  
     hemi_maskers = [HemisphereMasker(hemisphere=hemi, memory=memory).fit() for hemi in ['R','L']]
     x = [[c]*c for c in components]
-    y1, y2, size1, size2 = [], [], [], []    
+    y_vals = {sign:{val:[] for val in ['vals','mean','sd']} for sign in ['pos','neg']}  
     
     for img_d in images:    
         # 2) get mean sparsity per component
         for k in images_key:
             img = img_d[k]
             for s in sparsity_levels:
-                # sparsity_values is a list containing # of voxels above the given sparsity level for each component
+                # sparsity_vals is a list containing # of voxels above the given sparsity level for each component
                 if 'pos' in s:
                     sparsity_vals = (img.get_data() > sparsity_levels[s]).sum(axis=0).sum(axis=0).sum(axis=0)
                 elif 'neg' in s:
                     sparsity_vals = (img.get_data() < sparsity_levels[s]).sum(axis=0).sum(axis=0).sum(axis=0)
-                mean_sparsity = sparsity_vals.mean()
-                sem = ss.sem(sparsity_vals)
-                sparsity[k][s][0].append(mean_sparsity)
-                sparsity[k][s][1].append(sem)
+                    
+                sparsity[k][s].append(sparsity_vals)
+          
          
         # 3) get hpi values for wb components
             if k == "wb":
@@ -121,25 +120,26 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
                    
                 neg_vals = [(hemi_img.get_data() < -0.005).sum(axis=0).sum(axis=0).sum(axis=0) 
                            for hemi_img in hemi_imgs]
-        
-                with np.errstate(divide="ignore", invalid="ignore"):         
-                    (pos_hpi, neg_hpi) = [(vals[0].astype(float) - vals[1])/(vals[0] + vals[1])     # pos/neg HPI vals for each component
-                                         for vals in [pos_vals, neg_vals]]  
-                    pos_hpi[~np.isfinite(pos_hpi)] = 0                                              # set non finite values to 0
-                    neg_hpi[~np.isfinite(neg_hpi)] = 0 
-                y1.append(pos_hpi)
-                y2.append(neg_hpi)
-        
-                (pos_size, neg_size) = [vals[0]+vals[1] for vals in [pos_vals, neg_vals]]    
-                size1.append(pos_size)
-                size2.append(neg_size)
+                
+                for sign, val in zip(['pos','neg'],[pos_vals, neg_vals]):
+                    with np.errstate(divide="ignore", invalid="ignore"):         
+                        hpi = (val[0].astype(float) - val[1])/(val[0] + val[1])     # pos/neg HPI vals for each component
+                        hpi_mean = np.mean(hpi[np.isfinite(hpi)]) 
+                        hpi_sd = np.std(hpi[np.isfinite(hpi)]) 
+                        hpi[~np.isfinite(hpi)] = 0                                              # set non finite values to 0
     
+                    y_vals[sign]['vals'].append(hpi)
+                    y_vals[sign]['mean'].append(hpi_mean)
+                    y_vals[sign]['sd'].append(hpi_sd)
+        
+
     # Now plot:
     # 2)
     fh, axes= plt.subplots(1, 3, sharex=True, sharey=True, figsize=(18,6))
     for ax, k in zip(axes, images_key):
         for s in sparsity_levels:
-            mean, sem = sparsity[k][s][0], sparsity[k][s][1]
+            mean = [np.mean(arr) for arr in sparsity[k][s]]
+            sem = [ss.sem(arr) for arr in sparsity[k][s]]
             color, linestyle = sparsity_styles[s][0], sparsity_styles[s][1]
             ax.errorbar(components, mean, sem, color=color, linestyle=linestyle, label=s)
         ax.set_title("Average sparsity of the %s components"%(k))
@@ -153,15 +153,22 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
     save_and_close(out_path, fh=fh)
     
     # 3)
-    fh = plt.figure(figsize=(12,10))  
-    plt.scatter(np.hstack(x)+1, np.hstack(y1), label="positive", c="b", s=np.hstack(size1)/10)
-    plt.scatter(np.hstack(x)-1, np.hstack(y2), label="negative", c="r", s=np.hstack(size2)/10)
+    fh, axes = plt.subplots(1, 2, sharex=True, sharey =True, figsize=(12,6))
+    fh.suptitle("Hemispheric Participation Index for each component", fontsize=16)
+    properties = {'pos':['b','lightblue', 'above 0.005'], 'neg':['r','lightpink','below -0.005']}
+    for ax, sign in zip(axes, ['pos','neg']):
+        mean, sd = np.asarray(y_vals[sign]['mean']), np.asarray(y_vals[sign]['sd'])
+        ax.fill_between(components, mean+sd, mean-sd, linewidth=0, facecolor = properties[sign][1], alpha=0.5)
+        size = sparsity['wb']['%s_005'%(sign)]
+        ax.scatter(np.hstack(x), np.hstack(y_vals[sign]['vals']), label=sign, c=properties[sign][0], s=np.hstack(size)/20)
+        ax.plot(components, mean, c=properties[sign][0])
+        ax.set_title("%s"%(sign))
+        ax.set_xlim((0, components[-1]+5))
+        ax.set_ylim((-1, 1))
+        ax.set_xticks(components)
+        ax.set_ylabel("HPI((R-L)/(R+L) for # of voxels %s"%(properties[sign][2]))
     
-    plt.legend(bbox_to_anchor=(1.1,1))
-    plt.xlim(xmax = components[-1]+5), plt.ylim((-1, 1))
-    plt.xticks(components)
-    plt.xlabel("# of components"), plt.ylabel("HPI((R-L)/(R+L) for # of voxels above 0.005")
-    plt.title("Hemispheric Participation Index for each component")
+    fh.text(0.5, 0.04, "# of components", ha="center")
     
     out_path = op.join(out_dir, 'wb_HPI.png')
     save_and_close(out_path, fh=fh)
