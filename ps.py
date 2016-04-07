@@ -15,7 +15,7 @@ import os.path as op
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.stats as ss
+import re
 
 from main import main
 from nibabel_ext import NiftiImageWithTerms
@@ -84,8 +84,8 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
     
     
     # 2) overall sparsity of the wb components
-    sparsity_levels = {'pos_01':0.01,'pos_005':0.005,'neg_01':-0.01,'neg_005':-0.005}
-    sparsity_styles = {'pos_01':('b','-'),'pos_005':('b','--'),'neg_01':('r','-'),'neg_005':('r','--')}
+    sparsity_levels = ['pos_005','neg_005','abs_005']
+    
     # For each component type, store sparsity values for each sparsity level
     sparsity = {k:{s:[] for s in sparsity_levels} for k in images_key}  
     
@@ -100,12 +100,14 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
         for k in images_key:
             img = img_d[k]
             for s in sparsity_levels:
+                thresh = float('0.%s'%(re.findall('\d+',s)[0]))
                 # sparsity_vals is a list containing # of voxels above the given sparsity level for each component
                 if 'pos' in s:
-                    sparsity_vals = (img.get_data() > sparsity_levels[s]).sum(axis=0).sum(axis=0).sum(axis=0)
+                    sparsity_vals = (img.get_data() > thresh).sum(axis=0).sum(axis=0).sum(axis=0)
                 elif 'neg' in s:
-                    sparsity_vals = (img.get_data() < sparsity_levels[s]).sum(axis=0).sum(axis=0).sum(axis=0)
-                    
+                    sparsity_vals = (img.get_data() < -thresh).sum(axis=0).sum(axis=0).sum(axis=0)
+                elif 'abs' in s:
+                    sparsity_vals = (abs(img.get_data()) > thresh).sum(axis=0).sum(axis=0).sum(axis=0)   
                 sparsity[k][s].append(sparsity_vals)
           
          
@@ -136,18 +138,21 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
     # Now plot:
     # 2)
     fh, axes= plt.subplots(1, 3, sharex=True, sharey=True, figsize=(18,6))
+    sparsity_styles = {'pos_005':['b','lightblue'],'neg_005':['r','lightpink'], 'abs_005':['g','lightgreen']}
     for ax, k in zip(axes, images_key):
         for s in sparsity_levels:
-            mean = [np.mean(arr) for arr in sparsity[k][s]]
-            sem = [ss.sem(arr) for arr in sparsity[k][s]]
-            color, linestyle = sparsity_styles[s][0], sparsity_styles[s][1]
-            ax.errorbar(components, mean, sem, color=color, linestyle=linestyle, label=s)
-        ax.set_title("Average sparsity of the %s components"%(k))
+            mean = np.asarray([np.mean(arr) for arr in sparsity[k][s]])
+            sd = np.asarray([np.std(arr) for arr in sparsity[k][s]])
+            ax.fill_between(components, mean+sd, mean-sd, linewidth=0, facecolor = sparsity_styles[s][1], alpha=0.5)
+            ax.plot(components, mean, color=sparsity_styles[s][0], label=s)
+        # Overlay individual points for absolute threshold
+        ax.scatter(np.hstack(x), np.hstack(sparsity[k]['abs_005']), c=sparsity_styles['abs_005'][0])
+        ax.set_title("Sparsity of the %s components"%(k))
         ax.set_xlim(xmin = components[0]-1, xmax = components[-1]+1)
         ax.set_xticks(components)
     plt.legend()
     fh.text(0.5, 0.04, "# of components", ha="center")
-    fh.text(0.04, 0.5, "mean # of voxels above the threshold", va='center', rotation='vertical')
+    fh.text(0.04, 0.5, "# of voxels above the threshold", va='center', rotation='vertical')
     
     out_path = op.join(out_dir, 'sparsity.png')
     save_and_close(out_path, fh=fh)
@@ -155,18 +160,18 @@ def do_ic_loop(components, scoring, dataset, noSimScore=False,
     # 3)
     fh, axes = plt.subplots(1, 2, sharex=True, sharey =True, figsize=(12,6))
     fh.suptitle("Hemispheric Participation Index for each component", fontsize=16)
-    properties = {'pos':['b','lightblue', 'above 0.005'], 'neg':['r','lightpink','below -0.005']}
+    hpi_styles = {'pos':['b','lightblue', 'above 0.005'], 'neg':['r','lightpink','below -0.005']}
     for ax, sign in zip(axes, ['pos','neg']):
         mean, sd = np.asarray(y_vals[sign]['mean']), np.asarray(y_vals[sign]['sd'])
-        ax.fill_between(components, mean+sd, mean-sd, linewidth=0, facecolor = properties[sign][1], alpha=0.5)
+        ax.fill_between(components, mean+sd, mean-sd, linewidth=0, facecolor = hpi_styles[sign][1], alpha=0.5)
         size = sparsity['wb']['%s_005'%(sign)]
-        ax.scatter(np.hstack(x), np.hstack(y_vals[sign]['vals']), label=sign, c=properties[sign][0], s=np.hstack(size)/20)
-        ax.plot(components, mean, c=properties[sign][0])
+        ax.scatter(np.hstack(x), np.hstack(y_vals[sign]['vals']), label=sign, c=hpi_styles[sign][0], s=np.hstack(size)/20)
+        ax.plot(components, mean, c=hpi_styles[sign][0])
         ax.set_title("%s"%(sign))
         ax.set_xlim((0, components[-1]+5))
         ax.set_ylim((-1, 1))
         ax.set_xticks(components)
-        ax.set_ylabel("HPI((R-L)/(R+L) for # of voxels %s"%(properties[sign][2]))
+        ax.set_ylabel("HPI((R-L)/(R+L) for # of voxels %s"%(hpi_styles[sign][2]))
     
     fh.text(0.5, 0.04, "# of components", ha="center")
     
