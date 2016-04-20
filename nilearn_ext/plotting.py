@@ -31,18 +31,12 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
     # Use the n terms weighted most as a positive title, n terms 
     # weighted least as a negative title and return both
     
-    ica_terms = np.asarray(terms.values()).T
-    ic_terms = ica_terms[ic_idx]
-    terms = np.asarray(terms.keys())
-    
-    if flip_sign:
-        positive_terms = terms[np.argsort(ic_terms)[:n_terms]]
-        negative_terms = terms[np.argsort(ic_terms)[:-(n_terms+1):-1]]
-    else:   
-        positive_terms = terms[np.argsort(ic_terms)[:-(n_terms+1):-1]]
-        negative_terms = terms[np.argsort(ic_terms)[:n_terms]]
+    pos_terms, pos_vals = get_n_terms(terms, ic_idx, n_terms=n_terms, flip_sign=flip_sign)
+    neg_terms, neg_vals = get_n_terms(terms, ic_idx, n_terms=n_terms, top_bottom="bottom", 
+                                    flip_sign=flip_sign)
+                                    
     title = '%s[%d]: POS(%s) \n NEG(%s)' % (
-        label, ic_idx, ', '.join(positive_terms),', '.join(negative_terms))
+        label, ic_idx, ', '.join(pos_terms),', '.join(neg_terms))
     
     return title
 
