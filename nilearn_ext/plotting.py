@@ -22,7 +22,34 @@ def save_and_close(out_path, fh=None):
     fh.savefig(out_path)
     plt.close(fh)
 
-
+def get_ic_terms(terms, ic_idx, flip_sign = False, standardize = False):
+    
+    term_vals = np.asarray(terms.values()).T
+    ic_term_vals = term_vals[ic_idx]
+    terms = np.asarray(terms.keys())
+    
+    if flip_sign:
+        ic_term_vals = -ic_term_vals
+        
+    if standardize:
+        ic_term_vals = stats.zscore(ic_term_vals)
+        
+    return terms, ic_term_vals
+        
+def get_n_terms(terms, ic_idx, n_terms=4, top_bottom = 'top', flip_sign=False):
+    
+    # Get the top or bottom n terms and return the terms
+    
+    (terms, ic_term_vals) = get_ic_terms(terms, ic_idx, flip_sign=flip_sign)
+        
+    if top_bottom == 'top':
+        out_terms = terms[np.argsort(ic_term_vals)[:-(n_terms+1):-1]]
+        
+    elif top_bottom == 'bottom':
+        out_terms = terms[np.argsort(ic_term_vals)[:n_terms]]
+        
+    return out_terms
+    
 def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
 
     if terms is None:
@@ -31,8 +58,8 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
     # Use the n terms weighted most as a positive title, n terms 
     # weighted least as a negative title and return both
     
-    pos_terms, pos_vals = get_n_terms(terms, ic_idx, n_terms=n_terms, flip_sign=flip_sign)
-    neg_terms, neg_vals = get_n_terms(terms, ic_idx, n_terms=n_terms, top_bottom="bottom", 
+    pos_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, flip_sign=flip_sign)
+    neg_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, top_bottom="bottom", 
                                     flip_sign=flip_sign)
                                     
     title = '%s[%d]: POS(%s) \n NEG(%s)' % (
@@ -40,32 +67,7 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
     
     return title
 
-def get_n_terms(terms, ic_idx, n_terms=4, top_bottom = 'top', flip_sign=False, normalize=True):
-    
-    # Get the top and bottom n terms and return the terms as well as values 
-    # If normalize, values are expresesed as z score
-    
-    ica_terms = np.asarray(terms.values()).T
-    ic_terms = ica_terms[ic_idx]
-    terms = np.asarray(terms.keys())
-    
-    if flip_sign:
-        ic_terms = -ic_terms
-        
-    if normalize:
-        ic_terms = stats.zscore(ic_terms) 
-        
-    if top_bottom == 'top':
-        out_terms = terms[np.argsort(ic_terms)[:-(n_terms+1):-1]]
-        out_vals = np.sort(ic_terms)[:-(n_terms+1):-1]
-        
-    elif top_bottom == 'bottom':
-        out_terms = terms[np.argsort(ic_terms)[:n_terms]]
-        out_vals = np.sort(ic_terms)[:n_terms]
-        
-    return out_terms, out_vals
-      
-    
+
 def plot_components(ica_image, hemi='', out_dir=None,
                     bg_img=datasets.load_mni152_template()):
     print("Plotting %s components..." % hemi)
