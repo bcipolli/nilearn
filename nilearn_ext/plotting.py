@@ -6,14 +6,52 @@ import os
 import os.path as op
 
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from nilearn import datasets
 from nilearn.image import iter_img, index_img, new_img_like, math_img
 from nilearn.plotting import plot_stat_map
 from scipy import stats
 
-from nilearn_ext.utils import reorder_mat
+from nilearn_ext.utils import reorder_mat, get_ic_terms, get_n_terms
+from nilearn_ext.radar import radar_factory
 
+import math
+
+def nice_number(value, round_=False):
+    '''nice_number(value, round_=False) -> float'''
+    exponent = math.floor(math.log(value, 10))
+    fraction = value / 10 ** exponent
+
+    if round_:
+        if fraction < 1.5: nice_fraction = 1.
+        elif fraction < 3.: nice_fraction = 2.
+        elif fraction < 7.: nice_fraction = 5.
+        else: nice_fraction = 10.
+    else:
+        if fraction <= 1: nice_fraction = 1.
+        elif fraction <= 2: nice_fraction = 2.
+        elif fraction <= 5: nice_fraction = 5.
+        else: nice_fraction = 10.
+
+    return nice_fraction * 10 ** exponent
+
+def nice_bounds(axis_start, axis_end, num_ticks=8):
+    '''
+    nice_bounds(axis_start, axis_end, num_ticks=10) -> tuple
+    @return: tuple as (nice_axis_start, nice_axis_end, nice_tick_width)
+    '''
+    axis_width = axis_end - axis_start
+    if axis_width == 0:
+        nice_tick_w = 0
+    else:
+        nice_range = nice_number(axis_width)
+        nice_tick_w = nice_number(nice_range / (num_ticks -1), round_=True)
+        axis_start = math.floor(axis_start / nice_tick_w) * nice_tick_w
+        axis_end = math.ceil(axis_end / nice_tick_w) * nice_tick_w
+ 
+    nice_tick = np.arange(axis_start, axis_end, nice_tick_w)[1:]
+    return axis_start, axis_end, nice_tick
 
 def save_and_close(out_path, fh=None):
     fh = fh or plt.gcf()
@@ -21,34 +59,6 @@ def save_and_close(out_path, fh=None):
         os.makedirs(op.dirname(out_path))
     fh.savefig(out_path)
     plt.close(fh)
-
-def get_ic_terms(terms, ic_idx, flip_sign = False, standardize = False):
-    
-    term_vals = np.asarray(terms.values()).T
-    ic_term_vals = term_vals[ic_idx]
-    terms = np.asarray(terms.keys())
-    
-    if flip_sign:
-        ic_term_vals = -ic_term_vals
-        
-    if standardize:
-        ic_term_vals = stats.zscore(ic_term_vals)
-        
-    return terms, ic_term_vals
-        
-def get_n_terms(terms, ic_idx, n_terms=4, top_bottom = 'top', flip_sign=False):
-    
-    # Get the top or bottom n terms and return the terms
-    
-    (terms, ic_term_vals) = get_ic_terms(terms, ic_idx, flip_sign=flip_sign)
-        
-    if top_bottom == 'top':
-        out_terms = terms[np.argsort(ic_term_vals)[:-(n_terms+1):-1]]
-        
-    elif top_bottom == 'bottom':
-        out_terms = terms[np.argsort(ic_term_vals)[:n_terms]]
-        
-    return out_terms
     
 def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
 
@@ -237,3 +247,75 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
     if out_dir is not None:
         save_and_close(out_path=op.join(out_dir, '%s_%s_simmat%s.png' % (
             keys[0], keys[1], '-normalized' if normalize else '')))
+
+
+def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_list,
+                        top_n=4, bottom_n=4, standardize=True, out_dir=None):
+    '''
+    Take the list of ica image terms and the indices of components to be compared, and 
+    plots the top n and bottom n term values for each component as a radar graph.
+    
+    The sign_list should indicate whether term values should be flipped (-1) or not (1).
+    '''
+    assert len(term_list)==len(label_list)
+    assert len(term_list)==len(ic_idx_list)
+    assert len(term_list)==len(sign_list)
+    assert len(term_list)==len(color_list)
+    
+    terms_of_interest =[]
+    term_vals = []
+    name = ''
+
+    for i, term, sign, label in zip(ic_idx_list, term_list, sign_list, label_list):
+        flip_sign = True if sign == -1 else False
+        
+        # Get list of top n and bottom n terms for each term list  
+        top_terms = get_n_terms(term, i, n_terms=top_n, top_bottom = 'top', flip_sign=flip_sign)
+        bottom_terms = get_n_terms(term, i, n_terms=bottom_n, top_bottom = 'bottom', flip_sign=flip_sign)
+        combined = np.append(top_terms, bottom_terms)
+        terms_of_interest.append(combined)
+        
+        # Also store term vals (z-score if standardize) for each list
+        terms, vals = get_ic_terms(term, i, flip_sign = flip_sign, standardize = standardize)
+        s = pd.Series(vals, index = terms, name = label)
+        term_vals.append(s)
+        
+        # Construct name for the comparison
+        name += label + '[%d] '%(i)
+          
+        
+    term_df = pd.concat(term_vals, axis = 1)
+    
+    # Get unique terms from terms_of_interest list
+    toi_unique = np.unique(terms_of_interest)
+    
+    # Get values for unique terms_of_interest
+    data = term_df.loc[toi_unique]
+    data = data.sort_values(label_list, ascending =False)  
+    
+    # Now plot radar!
+    N = len(toi_unique)
+    theta = radar_factory(N)
+    fig = plt.figure(figsize=(5, 5))
+    ax = fig.add_subplot(1,1,1, projection='radar')
+    title = "Term comparisons for %scomponents"%(name)
+    ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
+                 horizontalalignment='center', verticalalignment='center')
+    
+    y_min, y_max, y_tick  = nice_bounds(data.values.min(), data.values.max())
+    print y_min, y_max, y_tick
+    ax.set_ylim(y_min,y_max)
+    ax.set_yticks([0], minor=True)
+    ax.set_yticks(y_tick)
+    ax.yaxis.grid(which='major', linestyle=':')
+    ax.yaxis.grid(which='minor', linestyle='-') 
+         
+    for label, color in zip(label_list, color_list):
+        ax.plot(theta,data[label], color = color)
+        ax.fill(theta,data[label], facecolor=color, alpha=0.25) 
+    ax.set_varlabels(data.index.values)
+    
+    legend = plt.legend(label_list, loc=(1.1, 0.9), labelspacing=0.1)
+    plt.setp(legend.get_texts(), fontsize='small')
+    plt.show()
+    return data
