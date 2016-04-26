@@ -60,7 +60,7 @@ def save_and_close(out_path, fh=None):
     fh.savefig(out_path)
     plt.close(fh)
     
-def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
+def _title_from_terms(terms, ic_idx, label=None, n_terms=4, sign=1):
 
     if terms is None:
         return '%s[%d]' % (label, ic_idx)
@@ -68,9 +68,9 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4, flip_sign=False):
     # Use the n terms weighted most as a positive title, n terms 
     # weighted least as a negative title and return both
     
-    pos_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, flip_sign=flip_sign)
+    pos_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, sign=sign)
     neg_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, top_bottom="bottom", 
-                                    flip_sign=flip_sign)
+                            sign=sign)
                                     
     title = '%s[%d]: POS(%s) \n NEG(%s)' % (
         label, ic_idx, ', '.join(pos_terms),', '.join(neg_terms))
@@ -175,11 +175,9 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
         comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)] 
         
         # flip the sign if sign_mat for the corresponding comparison is -1
-        if sign_mat[cis[0],cis[1]] == -1:
-            comp_imgs[1] = math_img("-img", img = comp_imgs[1]) 
-            flip_signs = (False, True)
-        else:
-            flip_signs = (False, False)  
+        sign = sign_mat[cis[0],cis[1]]
+        comp_imgs[1] = math_img("%d*img"%(sign), img = comp_imgs[1]) 
+
         dat = [img.get_data() for img in comp_imgs]
 
         if ('R' in labels and 'L' in labels):
@@ -202,8 +200,9 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
                 ax = fh.add_subplot(2, 1, ii + 1)
                 comp = comp_imgs[ii]
                 
+                title_sign = 1 if ii == 0 else sign
                 title = _title_from_terms(terms=images[ii].terms, ic_idx=cis[ii], 
-                                    label=labels[ii], flip_sign = flip_signs[ii])
+                                    label=labels[ii], sign = title_sign)
 
                 if ii == 0:
                     display = plot_stat_map(comp, axes=ax, title=title,    # noqa
@@ -267,16 +266,15 @@ def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_l
     name = ''
 
     for i, term, sign, label in zip(ic_idx_list, term_list, sign_list, label_list):
-        flip_sign = True if sign == -1 else False
         
         # Get list of top n and bottom n terms for each term list  
-        top_terms = get_n_terms(term, i, n_terms=top_n, top_bottom = 'top', flip_sign=flip_sign)
-        bottom_terms = get_n_terms(term, i, n_terms=bottom_n, top_bottom = 'bottom', flip_sign=flip_sign)
+        top_terms = get_n_terms(term, i, n_terms=top_n, top_bottom = 'top', sign=sign)
+        bottom_terms = get_n_terms(term, i, n_terms=bottom_n, top_bottom = 'bottom', sign=sign)
         combined = np.append(top_terms, bottom_terms)
         terms_of_interest.append(combined)
         
         # Also store term vals (z-score if standardize) for each list
-        terms, vals = get_ic_terms(term, i, flip_sign = flip_sign, standardize = standardize)
+        terms, vals = get_ic_terms(term, i, sign = sign, standardize = standardize)
         s = pd.Series(vals, index = terms, name = label)
         term_vals.append(s)
         

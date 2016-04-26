@@ -55,25 +55,24 @@ def reorder_mat(mat, normalize=True):
 # first reorder rows, from smallest sim to largest.
 
 
-def get_ic_terms(terms, ic_idx, flip_sign = False, standardize = False):
+def get_ic_terms(terms, ic_idx, sign = 1, standardize = False):
     
     term_vals = np.asarray(terms.values()).T
     ic_term_vals = term_vals[ic_idx]
     terms = np.asarray(terms.keys())
     
-    if flip_sign:
-        ic_term_vals = -ic_term_vals
+    ic_term_vals = sign*ic_term_vals
         
     if standardize:
         ic_term_vals = stats.zscore(ic_term_vals)
         
     return terms, ic_term_vals
         
-def get_n_terms(terms, ic_idx, n_terms=4, top_bottom = 'top', flip_sign=False):
+def get_n_terms(terms, ic_idx, n_terms=4, top_bottom = 'top', sign=1):
     
     # Get the top or bottom n terms and return the terms
-    
-    (terms, ic_term_vals) = get_ic_terms(terms, ic_idx, flip_sign=flip_sign)
+
+    (terms, ic_term_vals) = get_ic_terms(terms, ic_idx, sign=sign)
         
     if top_bottom == 'top':
         out_terms = terms[np.argsort(ic_term_vals)[:-(n_terms+1):-1]]
