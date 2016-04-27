@@ -81,17 +81,19 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4, sign=1):
 def plot_components(ica_image, hemi='', out_dir=None,
                     bg_img=datasets.load_mni152_template()):
     print("Plotting %s components..." % hemi)
-
+    
+    # Determine threshoold and vmax for all the plots
+    # get nonzero part of the image for proper thresholding of
+    # r- or l- only component
+    nonzero_img = ica_image.get_data()[np.nonzero(ica_image.get_data())]
+    thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
+    vmax= stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
     for ci, ic_img in enumerate(iter_img(ica_image)):
-        # Threshhold and title
-        # get nonzero part of the image for proper thresholding of
-        # r- or l- only component
-        nonzero_img = ic_img.get_data()[np.nonzero(ic_img.get_data())]
-        ic_thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
+        
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ci, label=hemi)
         fh = plt.figure(figsize=(14, 6))
-        plot_stat_map(ic_img, axes=fh.gca(), threshold=ic_thr, colorbar=True,
-                      title=title, black_bg=True, bg_img=bg_img)
+        plot_stat_map(ic_img, axes=fh.gca(), threshold=thr, vmax=vmax,
+                     colorbar=True,title=title, black_bg=True, bg_img=bg_img)
 
         # Save images instead of displaying
         if out_dir is not None:
@@ -103,6 +105,13 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
     print("Plotting %s components summary..." % hemi)
     
     n_components = ica_image.get_data().shape[3]
+    
+    # Determine threshoold and vmax for all the plots
+    # get nonzero part of the image for proper thresholding of
+    # r- or l- only component
+    nonzero_img = ica_image.get_data()[np.nonzero(ica_image.get_data())]
+    thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
+    vmax= stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
     for ii, ic_img in enumerate(iter_img(ica_image)):
         
         ri = ii % 5  # row i
@@ -114,15 +123,12 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
             fh = plt.figure(figsize=(30, 20))
             print('Plot %03d of %d' % (fi + 1, np.ceil(n_components / 25.)))
         ax = fh.add_subplot(5, 5, pi)
-        
-        # Threshhold and title
-        # get nonzero part of the image for proper thresholding of
-        # r- or l- only component
-        nonzero_img = ic_img.get_data()[np.nonzero(ic_img.get_data())]
-        ic_thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
+
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ii, label=hemi)
         
-        plot_stat_map(ic_img, axes=ax, threshold=ic_thr, colorbar=True,
+        colorbar = True if pi == 25 else False
+
+        plot_stat_map(ic_img, axes=ax, threshold=thr, vmax=vmax, colorbar=colorbar,
                       title=title, black_bg=True, bg_img=bg_img)
                       
         if (ri == 4 and ci == 4) or ii == n_components - 1:
@@ -130,7 +136,7 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
             save_and_close(out_path)
 
 
-def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None):
+def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None, prefix=""):
     """ 
     Uses the score_mat to find the closest components of each image, then plots 
     them side-by-side with equal colorbars. It finds the best match for every reference 
@@ -159,18 +165,22 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
     unmatched = np.setdiff1d(np.arange(n_components), most_similar_idx)
     unmatched_msi = score_mat.argmin(axis=0)
     
+    # Calculate a vmax optimal across all the plots
+    dat = np.asarray([img.get_data() for img in images])
+    vmax= stats.scoreatpercentile(np.abs(dat), 99.99)
+    
     print("Plotting results.")
     for c1i in range(n_components+len(unmatched)):
         
         if c1i < n_components:
             cis = [c1i, most_similar_idx[c1i]]
-            png_name = '%s_%s_%s.png' % (labels[0], labels[1], c1i)
+            png_name = '%s%s_%s_%s.png' % (prefix, labels[0], labels[1], c1i)
        
         # plot leftover components, matched to their closest ref component
         else:
             umi = unmatched[c1i-n_components]
             cis = [unmatched_msi[umi], umi]
-            png_name = 'unmatched_%s_%s.png' % (labels[1], c1i - n_components) 
+            png_name = '%sunmatched_%s_%s.png' % (prefix, labels[1], c1i - n_components) 
         
         comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)] 
         
@@ -178,7 +188,6 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
         sign = sign_mat[cis[0],cis[1]]
         comp_imgs[1] = math_img("%d*img"%(sign), img = comp_imgs[1]) 
 
-        dat = [img.get_data() for img in comp_imgs]
 
         if ('R' in labels and 'L' in labels):
             # Combine left and right image, show just one.
@@ -192,8 +201,6 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
 
         else:
             # Show two images, one above the other.
-
-            vmax = np.abs(np.asarray(dat)).max()  # Determine scale bars
             fh = plt.figure(figsize=(14, 12))
 
             for ii in [0, 1]:  # Subplot per image
@@ -223,7 +230,7 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
     return most_similar_idx, unmatched
 
 def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
-                           keys=('R', 'L'), vmax=None, colorbar=True):
+                           keys=('R', 'L'), vmax=None, colorbar=True, prefix=""):
 
     # Settings
     score_mat, x_idx, y_idx = reorder_mat(score_mat, normalize=normalize)
@@ -244,8 +251,8 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
 
     # Saving
     if out_dir is not None:
-        save_and_close(out_path=op.join(out_dir, '%s_%s_simmat%s.png' % (
-            keys[0], keys[1], '-normalized' if normalize else '')))
+        save_and_close(out_path=op.join(out_dir, '%s%s_%s_simmat%s.png' % (
+            prefix, keys[0], keys[1], '-normalized' if normalize else '')))
 
 
 def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_list,
@@ -294,7 +301,7 @@ def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_l
     # Now plot radar!
     N = len(toi_unique)
     theta = radar_factory(N)
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(1,1,1, projection='radar')
     title = "Term comparisons for %scomponents"%(name)
     ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
@@ -316,4 +323,9 @@ def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_l
     legend = plt.legend(label_list, loc=(1.1, 0.9), labelspacing=0.1)
     plt.setp(legend.get_texts(), fontsize='small')
     plt.show()
+    
+    # Saving
+    #if out_dir is not None:
+    #    save_and_close(out_path=op.join(out_dir, '%sterm_comparisons.png' % (
+    #                    name.replace(" ", "_"))))
     return data
