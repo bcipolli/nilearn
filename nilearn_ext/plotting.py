@@ -13,7 +13,7 @@ from nilearn.image import iter_img, index_img, new_img_like, math_img
 from nilearn.plotting import plot_stat_map
 from scipy import stats
 
-from nilearn_ext.utils import reorder_mat, get_ic_terms, get_n_terms
+from nilearn_ext.utils import reorder_mat, get_ic_terms, get_n_terms, get_match_idx_pair
 from nilearn_ext.radar import radar_factory
 
 import math
@@ -136,68 +136,51 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
             save_and_close(out_path)
 
 
-def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None, prefix=""):
+def plot_component_comparisons(images, labels, idx_pair, sign_pair, out_dir=None, prefix=""):
     """ 
-    Uses the score_mat to find the closest components of each image, then plots 
-    them side-by-side with equal colorbars. It finds the best match for every reference 
-    component (on y-axis of score-mat), i.e. it allows non-one-to-one matching. 
-    
-    The sign_mat is used to check the sign flipping of the component comparisons, 
-    and flips the matching component if necessary.
-    
-    If there are any unmatched component (on x-axis) it also plots them with their 
-    best-matching ref component. 
-    
-    It plots and saves component comparisons and returns matched and unmatched indices.
+    Uses the idx_pair to match up two images. Sign_pair specifies signs of the images.
     """
     # Be careful
     assert len(images) == 2
     assert len(labels) == 2
     assert images[0].shape == images[1].shape
     n_components = images[0].shape[3]  # values @ 0 and 1 are the same
-
-    # Find cross-image mapping...Note that this allows non-one-to-one matching
-    # i.e. for every given reference component (on y-axis) the best matching component
-    # is chosen, even if that component has been chosen before
-    most_similar_idx = score_mat.argmin(axis=1)
-    
-    # Keep track of unmatched components (on x-axis)
-    unmatched = np.setdiff1d(np.arange(n_components), most_similar_idx)
-    unmatched_msi = score_mat.argmin(axis=0)
+    assert np.max(idx_pair) < n_components
+    n_comp = len(idx_pair[0])   # number of comparisons
+    assert len(idx_pair[1]) == n_comp
+    assert len(sign_pair[0]) == n_comp
+    assert len(sign_pair[1]) == n_comp
     
     # Calculate a vmax optimal across all the plots
-    dat = np.asarray([img.get_data() for img in images])
+    # get nonzero part of the image for proper thresholding of
+    # r- or l- only component
+    nonzero_imgs = [img.get_data()[np.nonzero(img.get_data())] for img in images]
+    dat = np.append(nonzero_imgs[0], nonzero_imgs[1])
     vmax= stats.scoreatpercentile(np.abs(dat), 99.99)
     
     print("Plotting results.")
-    for c1i in range(n_components+len(unmatched)):
+    for i in range(n_comp):
+        c1i, c2i = idx_pair[0][i], idx_pair[1][i]
+        cis = [c1i, c2i]
         
-        if c1i < n_components:
-            cis = [c1i, most_similar_idx[c1i]]
-            png_name = '%s%s_%s_%s.png' % (prefix, labels[0], labels[1], c1i)
+        png_name = '%s%s_%s_%s.png' % (prefix, labels[0], labels[1], i)
        
-        # plot leftover components, matched to their closest ref component
-        else:
-            umi = unmatched[c1i-n_components]
-            cis = [unmatched_msi[umi], umi]
-            png_name = '%sunmatched_%s_%s.png' % (prefix, labels[1], c1i - n_components) 
-        
         comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)] 
         
         # flip the sign if sign_mat for the corresponding comparison is -1
-        sign = sign_mat[cis[0],cis[1]]
-        comp_imgs[1] = math_img("%d*img"%(sign), img = comp_imgs[1]) 
-
+        signs = [sign_pair[0][i], sign_pair[1][i]]
+        comp_imgs = [math_img("%d*img"%(sign), img = img) for sign, img in zip(signs, comp_imgs)] 
 
         if ('R' in labels and 'L' in labels):
             # Combine left and right image, show just one.
             # terms are not combined here
-            comp = new_img_like(comp_imgs[0], data=np.sum(dat, axis=0),
-                                copy_header=True)
-            title = _title_from_terms(terms=comp.terms, ic_idx=cis[1],
-                                      label='R[%d] vs. L' % cis[0])
-            fh = plt.figure(figsize=(14, 6))
-            plot_stat_map(comp, axes=fh.gca(), title=title, black_bg=True)
+            comp = math_img("img1+img2", img1=comp_imgs[0], img2=comp_imgs[1])
+            titles = [_title_from_terms(terms=comp_imgs[labels.index(hemi)].terms, 
+                                      ic_idx=cis[labels.index(hemi)], label=hemi, 
+                                      sign=signs[labels.index(hemi)]) for hemi in labels]
+            fh = plt.figure(figsize=(14, 8))
+            plot_stat_map(comp, axes=fh.gca(), title="\n".join(titles), black_bg=True,
+                         symmetric_cbar=True, vmax=vmax)
 
         else:
             # Show two images, one above the other.
@@ -206,10 +189,9 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
             for ii in [0, 1]:  # Subplot per image
                 ax = fh.add_subplot(2, 1, ii + 1)
                 comp = comp_imgs[ii]
-                
-                title_sign = 1 if ii == 0 else sign
+       
                 title = _title_from_terms(terms=images[ii].terms, ic_idx=cis[ii], 
-                                    label=labels[ii], sign = title_sign)
+                                    label=labels[ii], sign = signs[ii])
 
                 if ii == 0:
                     display = plot_stat_map(comp, axes=ax, title=title,    # noqa
@@ -226,8 +208,6 @@ def plot_component_comparisons(images, labels, score_mat, sign_mat, out_dir=None
         # Save images instead of displaying
         if out_dir is not None:
             save_and_close(out_path=op.join(out_dir, png_name), fh=fh)
-
-    return most_similar_idx, unmatched
 
 def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
                            keys=('R', 'L'), vmax=None, colorbar=True, prefix=""):
@@ -255,7 +235,7 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
             prefix, keys[0], keys[1], '-normalized' if normalize else '')))
 
 
-def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_list,
+def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g','r','b'],
                         top_n=4, bottom_n=4, standardize=True, out_dir=None):
     '''
     Take the list of ica image terms and the indices of components to be compared, and 
@@ -263,16 +243,16 @@ def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_l
     
     The sign_list should indicate whether term values should be flipped (-1) or not (1).
     '''
-    assert len(term_list)==len(label_list)
-    assert len(term_list)==len(ic_idx_list)
-    assert len(term_list)==len(sign_list)
-    assert len(term_list)==len(color_list)
+    assert len(terms)==len(labels)
+    assert len(terms)==len(ic_idx_list)
+    assert len(terms)==len(sign_list)
+    assert len(terms)==len(color_list)
     
     terms_of_interest =[]
     term_vals = []
     name = ''
 
-    for i, term, sign, label in zip(ic_idx_list, term_list, sign_list, label_list):
+    for i, term, sign, label in zip(ic_idx_list, terms, sign_list, labels):
         
         # Get list of top n and bottom n terms for each term list  
         top_terms = get_n_terms(term, i, n_terms=top_n, top_bottom = 'top', sign=sign)
@@ -296,7 +276,7 @@ def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_l
     
     # Get values for unique terms_of_interest
     data = term_df.loc[toi_unique]
-    data = data.sort_values(label_list, ascending =False)  
+    data = data.sort_values(labels, ascending =False)  
     
     # Now plot radar!
     N = len(toi_unique)
@@ -315,17 +295,16 @@ def plot_term_comparisons(label_list, term_list, ic_idx_list, sign_list, color_l
     ax.yaxis.grid(which='major', linestyle=':')
     ax.yaxis.grid(which='minor', linestyle='-') 
          
-    for label, color in zip(label_list, color_list):
+    for label, color in zip(labels, color_list):
         ax.plot(theta,data[label], color = color)
         ax.fill(theta,data[label], facecolor=color, alpha=0.25) 
     ax.set_varlabels(data.index.values)
     
-    legend = plt.legend(label_list, loc=(1.1, 0.9), labelspacing=0.1)
+    legend = plt.legend(labels, loc=(1.1, 0.9), labelspacing=0.1)
     plt.setp(legend.get_texts(), fontsize='small')
     plt.show()
     
     # Saving
-    #if out_dir is not None:
-    #    save_and_close(out_path=op.join(out_dir, '%sterm_comparisons.png' % (
-    #                    name.replace(" ", "_"))))
-    return data
+    if out_dir is not None:
+        save_and_close(out_path=op.join(out_dir, '%sterm_comparisons.png' % (
+                        name.replace(" ", "_"))))
