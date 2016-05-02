@@ -5,6 +5,7 @@
 import numpy as np
 from scipy import stats
 
+
 def reorder_mat(mat, normalize=True):
     """
     This function takes a distance matrix and reorders it such that
@@ -20,9 +21,8 @@ def reorder_mat(mat, normalize=True):
     The function also returns the new index for the reordered matrix
     for plotting.
     """
-
     # Reorder rows
-    row_reidx = np.argsort([np.diff(np.sort(row))[0]/np.sort(row)[0]
+    row_reidx = np.argsort([np.diff(np.sort(row))[0] / np.sort(row)[0]
                            for row in mat])[::-1]
     mat = mat[row_reidx]
 
@@ -52,7 +52,6 @@ def reorder_mat(mat, normalize=True):
     out_mat = (norm_mat if normalize else mat.T)[col_reidx].T
     return out_mat, col_reidx, row_reidx  # col=x, row=y, thus the ordering
 
-# first reorder rows, from smallest sim to largest.
 
 def get_match_idx_pair(score_mat, sign_mat, force=False):
     """
@@ -68,7 +67,6 @@ def get_match_idx_pair(score_mat, sign_mat, force=False):
     If Force = True, one-to-one matching is forced, and None is returned for
     unmatched index array.
     """
-
     if force:
         out_mat, cols, rows = reorder_mat(score_mat)
         # sort by rows
@@ -111,14 +109,15 @@ def get_ic_terms(terms, ic_idx, sign=1, standardize=False):
 
     return terms, ic_term_vals
 
-def get_n_terms(terms, ic_idx, n_terms=4, top_bottom = 'top', sign=1):
+
+def get_n_terms(terms, ic_idx, n_terms=4, top_bottom='top', sign=1):
 
     # Get the top or bottom n terms and return the terms
 
     (terms, ic_term_vals) = get_ic_terms(terms, ic_idx, sign=sign)
 
     if top_bottom == 'top':
-        out_terms = terms[np.argsort(ic_term_vals)[:-(n_terms+1):-1]]
+        out_terms = terms[np.argsort(ic_term_vals)[:-(n_terms + 1):-1]]
 
     elif top_bottom == 'bottom':
         out_terms = terms[np.argsort(ic_term_vals)[:n_terms]]

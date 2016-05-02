@@ -8,12 +8,11 @@ import nibabel as nib
 import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
-from nilearn.image import index_img, iter_img, math_img
+from nilearn.image import index_img, math_img
 
 from nibabel_ext import NiftiImageWithTerms
 from nilearn_ext.datasets import fetch_neurovault
 from nilearn_ext.decomposition import compare_components, generate_components
-from nilearn_ext.masking import join_bilateral_rois
 from nilearn_ext.plotting import (plot_component_comparisons, plot_components,
                                   plot_components_summary, plot_comparison_matrix,
                                   plot_term_comparisons)
@@ -22,8 +21,7 @@ from nilearn_ext.utils import get_ic_terms, get_match_idx_pair
 
 def load_or_generate_components(hemi, out_dir='.', plot_dir=None, force=False,
                                 *args, **kwargs):
-    """ Load an image and return if it exists, otherwise compute via ICA"""
-
+    """Load an image and return if it exists, otherwise compute via ICA"""
     # Only re-run if image doesn't exist.
     img_path = op.join(out_dir, '%s_ica_components.nii.gz' % hemi)
     if not force and op.exists(img_path):
@@ -43,7 +41,6 @@ def concat_RL(R_img, L_img, rl_idx_pair, rl_sign_pair=None):
     create bilateral image using the index pairs. Sign flipping can be specified in rl_sign_pair.
 
     """
-
     # Make sure images have same number of components and indices are less than the n_components
     assert R_img.shape == L_img.shape
     n_components = R_img.shape[3]
@@ -68,23 +65,24 @@ def concat_RL(R_img, L_img, rl_idx_pair, rl_sign_pair=None):
         r_sign = rl_sign_pair[0][i] if rl_sign_pair else 1
         l_sign = rl_sign_pair[1][i] if rl_sign_pair else 1
 
-        R_comp_img = math_img("%d*img"%(r_sign), img = R_comp_img)
-        L_comp_img = math_img("%d*img"%(l_sign), img = L_comp_img)
+        R_comp_img = math_img("%d*img" % (r_sign), img=R_comp_img)
+        L_comp_img = math_img("%d*img" % (l_sign), img=L_comp_img)
 
         # combine images
         rl_imgs.append(math_img("r+l", r=R_comp_img, l=L_comp_img))
 
         # combine terms
         if terms:
-             r_ic_terms, r_ic_term_vals = get_ic_terms(R_img.terms, rci, sign=r_sign)
-             l_ic_terms, l_ic_term_vals = get_ic_terms(L_img.terms, lci, sign=l_sign)
-             rl_term_vals.append((r_ic_term_vals+l_ic_term_vals)/2)
+            r_ic_terms, r_ic_term_vals = get_ic_terms(R_img.terms, rci, sign=r_sign)
+            l_ic_terms, l_ic_term_vals = get_ic_terms(L_img.terms, lci, sign=l_sign)
+            rl_term_vals.append((r_ic_term_vals + l_ic_term_vals) / 2)
 
     # Squash into single image
     concat_img = nib.concat_images(rl_imgs)
     if terms:
         concat_img.terms = dict(zip(terms, np.asarray(rl_term_vals).T))
     return concat_img
+
 
 def compare_components_and_plot(images, labels, scoring, force_match=False, out_dir=None):
     """
@@ -152,7 +150,7 @@ def get_dataset(dataset, max_images=np.inf, **kwargs):
     return images, term_scores
 
 
-def main(dataset, key = "wb", force_match=False, n_components=20,
+def main(dataset, key="wb", force_match=False, n_components=20,
          max_images=np.inf, scoring='l1norm', query_server=True,
          force=False, nii_dir=None, plot_dir=None, random_state=42):
     """
@@ -169,12 +167,11 @@ def main(dataset, key = "wb", force_match=False, n_components=20,
     If one-to-one matching is forced with force_match=True, this is identical as rl.
 
     """
-
     # Output directories
     nii_dir = nii_dir or op.join('ica_nii', dataset, str(n_components))
     plot_dir = plot_dir or op.join('ica_imgs', dataset,
                                    '%s-%dics' % (scoring, n_components))
-    plot_sub_dir = op.join(plot_dir, '%s-matching%s'% (key, '_forced' if force_match else ''))
+    plot_sub_dir = op.join(plot_dir, '%s-matching%s' % (key, '_forced' if force_match else ''))
 
     images, term_scores = get_dataset(dataset, max_images=max_images,
                                       query_server=query_server)
@@ -185,23 +182,23 @@ def main(dataset, key = "wb", force_match=False, n_components=20,
 
     # Load or generate components
     kwargs = dict(images=[im['local_path'] for im in images],
-                 n_components=n_components, term_scores=term_scores,
-                 out_dir=nii_dir, plot_dir=plot_dir)
+                  n_components=n_components, term_scores=term_scores,
+                  out_dir=nii_dir, plot_dir=plot_dir)
     for hemi in hemis:
         print("Running analyses on %s" % hemi)
         imgs[hemi] = (load_or_generate_components(hemi=hemi, force=force,
-                                                random_state=random_state, **kwargs))
+                                                  random_state=random_state, **kwargs))
 
     # 2) Compare components in order to get concatenated RL image
     #    "wb": R- and L- is compared to wb-components, then matched
     #    "rl": direct R- and L- comparison, using R as a ref
     #    "lr": direct R- and L- comparison, using L as a ref
     if key == "wb":
-        comparisons = [('wb','R'),('wb','L')]
+        comparisons = [('wb', 'R'), ('wb', 'L')]
     elif key == "rl":
-        comparisons = [('R','L')]
+        comparisons = [('R', 'L')]
     elif key == "lr":
-        comparisons = [('L','R')]
+        comparisons = [('L', 'R')]
 
     score_mats, sign_mats = {}, {}
 
@@ -212,8 +209,8 @@ def main(dataset, key = "wb", force_match=False, n_components=20,
         # Compare components and plot
         # The sign_mat contains signs that gave the best score for the comparison
         score_mat, sign_mat = compare_components_and_plot(images=img_pair, labels=comp,
-                                              scoring=scoring, force_match=force_match,
-                                              out_dir=plot_sub_dir)
+                                                          scoring=scoring, force_match=force_match,
+                                                          out_dir=plot_sub_dir)
 
         # Store score_mat and sign_mat
         score_mats[comp] = score_mat
@@ -238,16 +235,16 @@ def main(dataset, key = "wb", force_match=False, n_components=20,
 
     # 3) Now match up R and L
     imgs['RL'] = concat_RL(R_img=imgs['R'], L_img=imgs['L'],
-                          rl_idx_pair=(r_idx_arr, l_idx_arr),
-                          rl_sign_pair=(r_sign_arr, l_sign_arr))
+                           rl_idx_pair=(r_idx_arr, l_idx_arr),
+                           rl_sign_pair=(r_sign_arr, l_sign_arr))
 
     # 4) Now compare the concatenated image to bilateral components
     # Note that for wb-matching, diagnal components will be matched by definition
     comp = ('wb', 'RL')
     img_pair = [imgs['wb'], imgs['RL']]
-    score_mat, sign_mat = compare_components_and_plot(images= img_pair,labels=comp,
-                                              scoring=scoring, force_match=force_match,
-                                              out_dir=plot_sub_dir)
+    score_mat, sign_mat = compare_components_and_plot(images=img_pair, labels=comp,
+                                                      scoring=scoring, force_match=force_match,
+                                                      out_dir=plot_sub_dir)
 
     # Store score_mat and sign_mat
     score_mats[comp] = score_mat
@@ -256,23 +253,22 @@ def main(dataset, key = "wb", force_match=False, n_components=20,
     # Show term comparisons between the matched wb, R and L components
     terms = [imgs[hemi].terms for hemi in hemis]
     matched_idx_arr, unmatched_idx_arr = get_match_idx_pair(score_mat, sign_mat,
-                                                                force=force_match)
-    ## component index list for wb, R and L
+                                                            force=force_match)
+    # component index list for wb, R and L
     wb_idx_arr = matched_idx_arr[0]
     r_idx_arr = r_idx_arr[matched_idx_arr[1]]
     l_idx_arr = l_idx_arr[matched_idx_arr[1]]
     ic_idx_list = [wb_idx_arr, r_idx_arr, l_idx_arr]
 
-    ## sign flipping list for wb, R and L
+    # sign flipping list for wb, R and L
     wb_sign_arr = np.ones(n_components)
-    r_sign_arr = matched_idx_arr[2]*r_sign_arr[matched_idx_arr[1]]
-    l_sign_arr = matched_idx_arr[2]*l_sign_arr[matched_idx_arr[1]]
+    r_sign_arr = matched_idx_arr[2] * r_sign_arr[matched_idx_arr[1]]
+    l_sign_arr = matched_idx_arr[2] * l_sign_arr[matched_idx_arr[1]]
     sign_list = [wb_sign_arr, r_sign_arr, l_sign_arr]
 
     plot_term_comparisons(terms, labels=hemis, ic_idx_list=ic_idx_list,
-                        sign_list=sign_list, color_list=['g','r','b'],
-                        top_n=5, bottom_n=5, standardize=True, out_dir=plot_sub_dir)
-
+                          sign_list=sign_list, color_list=['g', 'r', 'b'],
+                          top_n=5, bottom_n=5, standardize=True, out_dir=plot_sub_dir)
 
     return imgs, score_mats, sign_mats
 

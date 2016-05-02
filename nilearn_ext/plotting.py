@@ -29,30 +29,37 @@ def nice_number(value, round_=False):
     fraction = value / 10 ** exponent
 
     if round_:
-        if fraction < 1.5: nice_fraction = 1.
-        elif fraction < 3.: nice_fraction = 2.
-        elif fraction < 7.: nice_fraction = 5.
-        else: nice_fraction = 10.
+        if fraction < 1.5:
+            nice_fraction = 1.
+        elif fraction < 3.:
+            nice_fraction = 2.
+        elif fraction < 7.:
+            nice_fraction = 5.
+        else:
+            nice_fraction = 10.
     else:
-        if fraction <= 1: nice_fraction = 1.
-        elif fraction <= 2: nice_fraction = 2.
-        elif fraction <= 5: nice_fraction = 5.
-        else: nice_fraction = 10.
+        if fraction <= 1:
+            nice_fraction = 1.
+        elif fraction <= 2:
+            nice_fraction = 2.
+        elif fraction <= 5:
+            nice_fraction = 5.
+        else:
+            nice_fraction = 10.
 
     return nice_fraction * 10 ** exponent
 
 
 def nice_bounds(axis_start, axis_end, num_ticks=8):
-    '''
-    nice_bounds(axis_start, axis_end, num_ticks=10) -> tuple
-    @return: tuple as (nice_axis_start, nice_axis_end, nice_tick_width)
-    '''
+    """
+    Returns tuple as (nice_axis_start, nice_axis_end, nice_tick_width)
+    """
     axis_width = axis_end - axis_start
     if axis_width == 0:
         nice_tick_w = 0
     else:
         nice_range = nice_number(axis_width)
-        nice_tick_w = nice_number(nice_range / (num_ticks -1), round_=True)
+        nice_tick_w = nice_number(nice_range / (num_ticks - 1), round=True)
         axis_start = math.floor(axis_start / nice_tick_w) * nice_tick_w
         axis_end = math.ceil(axis_end / nice_tick_w) * nice_tick_w
 
@@ -81,7 +88,7 @@ def _title_from_terms(terms, ic_idx, label=None, n_terms=4, sign=1):
                             sign=sign)
 
     title = '%s[%d]: POS(%s) \n NEG(%s)' % (
-        label, ic_idx, ', '.join(pos_terms),', '.join(neg_terms))
+        label, ic_idx, ', '.join(pos_terms), ', '.join(neg_terms))
 
     return title
 
@@ -95,13 +102,13 @@ def plot_components(ica_image, hemi='', out_dir=None,
     # r- or l- only component
     nonzero_img = ica_image.get_data()[np.nonzero(ica_image.get_data())]
     thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
-    vmax= stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
+    vmax = stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
     for ci, ic_img in enumerate(iter_img(ica_image)):
 
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ci, label=hemi)
         fh = plt.figure(figsize=(14, 6))
         plot_stat_map(ic_img, axes=fh.gca(), threshold=thr, vmax=vmax,
-                      colorbar=True,title=title, black_bg=True, bg_img=bg_img)
+                      colorbar=True, title=title, black_bg=True, bg_img=bg_img)
 
         # Save images instead of displaying
         if out_dir is not None:
@@ -120,7 +127,7 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
     # r- or l- only component
     nonzero_img = ica_image.get_data()[np.nonzero(ica_image.get_data())]
     thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
-    vmax= stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
+    vmax = stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
     for ii, ic_img in enumerate(iter_img(ica_image)):
 
         ri = ii % 5  # row i
@@ -256,12 +263,12 @@ def plot_comparison_matrix(score_mat, labels, scoring, normalize=True,
 
 def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g', 'r', 'b'],
                           top_n=4, bottom_n=4, standardize=True, out_dir=None):
-    '''
+    """
     Take the list of ica image terms and the indices of components to be compared, and
     plots the top n and bottom n term values for each component as a radar graph.
 
     The sign_list should indicate whether term values should be flipped (-1) or not (1).
-    '''
+    """
     assert len(terms) == len(labels)
     assert len(terms) == len(ic_idx_list)
     assert len(terms) == len(sign_list)
@@ -305,13 +312,13 @@ def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g'
 
         # Get values for unique terms_of_interest
         data = term_df.loc[toi_unique]
-        data = data.sort_values(labels, ascending=alse)
+        data = data.sort_values(labels, ascending=False)
 
         # Now plot radar!
         N = len(toi_unique)
         theta = radar_factory(N)
         fig = plt.figure(figsize=(10, 8))
-        ax = fig.add_subplot(1,1,1, projection='radar')
+        ax = fig.add_subplot(1, 1, 1, projection='radar')
         title = "Term comparisons for %scomponents" % (name)
         ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
                      horizontalalignment='center', verticalalignment='center')
@@ -324,7 +331,7 @@ def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g'
         ax.yaxis.grid(which='minor', linestyle='-')
 
         for label, color in zip(labels, color_list):
-            ax.plot(theta, data[label], color = color)
+            ax.plot(theta, data[label], color=color)
             ax.fill(theta, data[label], facecolor=color, alpha=0.25)
         ax.set_varlabels(data.index.values)
 
