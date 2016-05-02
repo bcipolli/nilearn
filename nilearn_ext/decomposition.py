@@ -108,15 +108,14 @@ def compare_components(images, labels, scoring='l1norm',
     assert len(labels) == 2
     assert images[0].shape == images[1].shape
     n_components = images[0].shape[3]  # values @ 0 and 1 are the same
-    labels = (l.upper() for l in labels) # make input labels case insensitive
-
+    labels = [l.upper() for l in labels] # make input labels case insensitive
     print("Loading images.")
     for img in images:
         img.get_data()  # Just loaded to get them in memory..
 
     print("Scoring closest components (by %s)" % str(scoring))
     score_mat = np.zeros((n_components, n_components))
-    sign_mat = np.zeros((n_components, n_components))
+    sign_mat = np.zeros((n_components, n_components), dtype=np.int)
     c1_data = [None] * n_components
     c2_data = [None] * n_components
 
@@ -139,13 +138,14 @@ def compare_components(images, labels, scoring='l1norm',
                     c1_data[c1i] = masker.transform(flip_img_lr(R_img)).ravel()
                 if c2_data[c2i] is None:
                     c2_data[c2i] = masker.transform(L_img).ravel()
-
+                
             elif 'R' in labels or 'L' in labels:
                 masker = rh_masker if 'R' in labels else lh_masker
                 if c1_data[c1i] is None:
                     c1_data[c1i] = masker.transform(comp1).ravel()
                 if c2_data[c2i] is None:
                     c2_data[c2i] = masker.transform(comp2).ravel()
+                
             else:
                 if c1_data[c1i] is None:
                     c1_data[c1i] = comp1.get_data().ravel()
