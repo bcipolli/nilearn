@@ -117,9 +117,9 @@ def compare_components_and_plot(images, labels, scoring, force_match=False, out_
         sign_pair=matched_sign_pair, out_dir=out_dir)
 
     # ...for unmatched pairs
-    if unmatched_idx_arr:
+    if unmatched_idx_arr is not None and len(unmatched_idx_arr) > 0:
         unmatched_idx_pair = [unmatched_idx_arr[0], unmatched_idx_arr[1]]
-        unmatched_sign_pair = [np.ones(n_components), unmatched_idx_arr[2]]
+        unmatched_sign_pair = [np.ones(unmatched_idx_arr[2].shape), unmatched_idx_arr[2]]
 
         plot_component_comparisons(
             images, labels, idx_pair=unmatched_idx_pair,

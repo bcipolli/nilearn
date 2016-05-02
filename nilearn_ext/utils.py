@@ -86,11 +86,12 @@ def get_match_idx_pair(score_mat, sign_mat, force=False):
         matched_idx_arr = np.vstack((rows, cols, matched_signs))
 
         unmatched_cols = np.setdiff1d(rows, cols)
-        if not unmatched_cols:
+
+        if unmatched_cols is not None and len(unmatched_cols) == 0:
             unmatched_idx_arr = None
         else:
-            unmatched_rows = unmatched_cols[unmatched_msi]
             unmatched_msi = score_mat.argmin(axis=0)
+            unmatched_rows = unmatched_msi[unmatched_cols]
             unmatched_signs = sign_mat[[unmatched_rows, unmatched_cols]]
             unmatched_idx_arr = np.vstack((unmatched_rows, unmatched_cols, unmatched_signs))
 
