@@ -305,7 +305,7 @@ def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g'
 
         # Get values for unique terms_of_interest
         data = term_df.loc[toi_unique]
-        data = data.sort_values(labels, ascending=alse)
+        data = data.sort_values(labels, ascending=False)
 
         # Now plot radar!
         N = len(toi_unique)
