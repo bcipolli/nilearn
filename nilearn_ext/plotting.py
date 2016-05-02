@@ -209,8 +209,8 @@ def plot_component_comparisons(images, labels, idx_pair, sign_pair, out_dir=None
         if out_dir is not None:
             save_and_close(out_path=op.join(out_dir, png_name), fh=fh)
 
-def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
-                           keys=('R', 'L'), vmax=None, colorbar=True, prefix=""):
+def plot_comparison_matrix(score_mat, labels, scoring, normalize=True, out_dir=None,
+                           vmax=None, colorbar=True, prefix=""):
 
     # Settings
     score_mat, x_idx, y_idx = reorder_mat(score_mat, normalize=normalize)
@@ -222,8 +222,8 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
     fh = plt.figure(figsize=(10, 10))
     ax = fh.gca()
     cax = ax.matshow(score_mat, vmin=vmin, vmax=vmax)
-    ax.set_xlabel("%s components" % (keys[1]))
-    ax.set_ylabel("%s components" % (keys[0]))
+    ax.set_xlabel("%s components" % (labels[1]))
+    ax.set_ylabel("%s components" % (labels[0]))
     ax.set_xticks(idx), ax.set_xticklabels(x_idx)
     ax.set_yticks(idx), ax.set_yticklabels(y_idx)
     if colorbar:
@@ -232,7 +232,7 @@ def plot_comparison_matrix(score_mat, scoring, normalize=True, out_dir=None,
     # Saving
     if out_dir is not None:
         save_and_close(out_path=op.join(out_dir, '%s%s_%s_simmat%s.png' % (
-            prefix, keys[0], keys[1], '-normalized' if normalize else '')))
+            prefix, labels[0], labels[1], '-normalized' if normalize else '')))
 
 
 def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g','r','b'],
@@ -247,64 +247,71 @@ def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g'
     assert len(terms)==len(ic_idx_list)
     assert len(terms)==len(sign_list)
     assert len(terms)==len(color_list)
+    n_comp = len(ic_idx_list[0])   # length of each ic_idx_list and sign_list
+    for i in range(len(terms)):
+        assert len(ic_idx_list[i])==n_comp
+        assert len(sign_list[i])==n_comp
     
-    terms_of_interest =[]
-    term_vals = []
-    name = ''
-
-    for i, term, sign, label in zip(ic_idx_list, terms, sign_list, labels):
+    # iterate over the ic_idx_list and sign_list for each term and plot
+    for n in range(n_comp):
+                  
+        terms_of_interest =[]
+        term_vals = []
+        name = ''
         
-        # Get list of top n and bottom n terms for each term list  
-        top_terms = get_n_terms(term, i, n_terms=top_n, top_bottom = 'top', sign=sign)
-        bottom_terms = get_n_terms(term, i, n_terms=bottom_n, top_bottom = 'bottom', sign=sign)
-        combined = np.append(top_terms, bottom_terms)
-        terms_of_interest.append(combined)
+        for i, (term, label) in enumerate(zip(terms, labels)):
+            idx = ic_idx_list[i][n]
+            sign = sign_list[i][n]
+            # Get list of top n and bottom n terms for each term list  
+            top_terms = get_n_terms(term, idx, n_terms=top_n, top_bottom = 'top', sign=sign)
+            bottom_terms = get_n_terms(term, idx, n_terms=bottom_n, top_bottom = 'bottom', sign=sign)
+            combined = np.append(top_terms, bottom_terms)
+            terms_of_interest.append(combined)
+            
+            # Also store term vals (z-score if standardize) for each list
+            t, vals = get_ic_terms(term, idx, sign = sign, standardize = standardize)
+            s = pd.Series(vals, index = t, name = label)
+            term_vals.append(s)
         
-        # Also store term vals (z-score if standardize) for each list
-        terms, vals = get_ic_terms(term, i, sign = sign, standardize = standardize)
-        s = pd.Series(vals, index = terms, name = label)
-        term_vals.append(s)
+            # Construct name for the comparison
+            name += label + '[%d] '%(idx)  
         
-        # Construct name for the comparison
-        name += label + '[%d] '%(i)
-          
-        
-    term_df = pd.concat(term_vals, axis = 1)
+        # Data for all the terms 
+        term_df = pd.concat(term_vals, axis = 1)
     
-    # Get unique terms from terms_of_interest list
-    toi_unique = np.unique(terms_of_interest)
+        # Get unique terms from terms_of_interest list
+        toi_unique = np.unique(terms_of_interest)
     
-    # Get values for unique terms_of_interest
-    data = term_df.loc[toi_unique]
-    data = data.sort_values(labels, ascending =False)  
+        # Get values for unique terms_of_interest
+        data = term_df.loc[toi_unique]
+        data = data.sort_values(labels, ascending =False)  
     
-    # Now plot radar!
-    N = len(toi_unique)
-    theta = radar_factory(N)
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(1,1,1, projection='radar')
-    title = "Term comparisons for %scomponents"%(name)
-    ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
-                 horizontalalignment='center', verticalalignment='center')
+        # Now plot radar!
+        N = len(toi_unique)
+        theta = radar_factory(N)
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(1,1,1, projection='radar')
+        title = "Term comparisons for %scomponents"%(name)
+        ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
+                    horizontalalignment='center', verticalalignment='center')
     
-    y_min, y_max, y_tick  = nice_bounds(data.values.min(), data.values.max())
-    print y_min, y_max, y_tick
-    ax.set_ylim(y_min,y_max)
-    ax.set_yticks([0], minor=True)
-    ax.set_yticks(y_tick)
-    ax.yaxis.grid(which='major', linestyle=':')
-    ax.yaxis.grid(which='minor', linestyle='-') 
+        y_min, y_max, y_tick  = nice_bounds(data.values.min(), data.values.max())
+        ax.set_ylim(y_min,y_max)
+        ax.set_yticks([0], minor=True)
+        ax.set_yticks(y_tick)
+        ax.yaxis.grid(which='major', linestyle=':')
+        ax.yaxis.grid(which='minor', linestyle='-') 
          
-    for label, color in zip(labels, color_list):
-        ax.plot(theta,data[label], color = color)
-        ax.fill(theta,data[label], facecolor=color, alpha=0.25) 
-    ax.set_varlabels(data.index.values)
+        for label, color in zip(labels, color_list):
+            ax.plot(theta,data[label], color = color)
+            ax.fill(theta,data[label], facecolor=color, alpha=0.25) 
+        ax.set_varlabels(data.index.values)
     
-    legend = plt.legend(labels, loc=(1.1, 0.9), labelspacing=0.1)
-    plt.setp(legend.get_texts(), fontsize='small')
-    plt.show()
+        legend = plt.legend(labels, loc=(1.1, 0.9), labelspacing=0.1)
+        plt.setp(legend.get_texts(), fontsize='small')
+#        plt.show()
     
-    # Saving
-    if out_dir is not None:
-        save_and_close(out_path=op.join(out_dir, '%sterm_comparisons.png' % (
+        # Saving
+        if out_dir is not None:
+            save_and_close(out_path=op.join(out_dir, '%sterm_comparisons.png' % (
                         name.replace(" ", "_"))))
