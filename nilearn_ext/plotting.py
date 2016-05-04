@@ -9,17 +9,22 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from nilearn import datasets
-from nilearn.image import iter_img, index_img, new_img_like, math_img
+from nilearn.image import iter_img, index_img, math_img
 from nilearn.plotting import plot_stat_map
 from scipy import stats
 
-from nilearn_ext.utils import reorder_mat, get_ic_terms, get_n_terms, get_match_idx_pair
+from nilearn_ext.utils import reorder_mat, get_ic_terms, get_n_terms
 from nilearn_ext.radar import radar_factory
 
 import math
 
+
 def nice_number(value, round_=False):
-    '''nice_number(value, round_=False) -> float'''
+    """
+    Convert a number to a print-ready value.
+
+    nice_number(value, round_=False) -> float
+    """
     exponent = math.floor(math.log(value, 10))
     fraction = value / 10 ** exponent
 
@@ -36,6 +41,7 @@ def nice_number(value, round_=False):
 
     return nice_fraction * 10 ** exponent
 
+
 def nice_bounds(axis_start, axis_end, num_ticks=8):
     '''
     nice_bounds(axis_start, axis_end, num_ticks=10) -> tuple
@@ -49,9 +55,10 @@ def nice_bounds(axis_start, axis_end, num_ticks=8):
         nice_tick_w = nice_number(nice_range / (num_ticks -1), round_=True)
         axis_start = math.floor(axis_start / nice_tick_w) * nice_tick_w
         axis_end = math.ceil(axis_end / nice_tick_w) * nice_tick_w
- 
+
     nice_tick = np.arange(axis_start, axis_end, nice_tick_w)[1:]
     return axis_start, axis_end, nice_tick
+
 
 def save_and_close(out_path, fh=None):
     fh = fh or plt.gcf()
@@ -59,29 +66,30 @@ def save_and_close(out_path, fh=None):
         os.makedirs(op.dirname(out_path))
     fh.savefig(out_path)
     plt.close(fh)
-    
+
+
 def _title_from_terms(terms, ic_idx, label=None, n_terms=4, sign=1):
 
     if terms is None:
         return '%s[%d]' % (label, ic_idx)
 
-    # Use the n terms weighted most as a positive title, n terms 
+    # Use the n terms weighted most as a positive title, n terms
     # weighted least as a negative title and return both
-    
+
     pos_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, sign=sign)
-    neg_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, top_bottom="bottom", 
+    neg_terms = get_n_terms(terms, ic_idx, n_terms=n_terms, top_bottom="bottom",
                             sign=sign)
-                                    
+
     title = '%s[%d]: POS(%s) \n NEG(%s)' % (
         label, ic_idx, ', '.join(pos_terms),', '.join(neg_terms))
-    
+
     return title
 
 
 def plot_components(ica_image, hemi='', out_dir=None,
                     bg_img=datasets.load_mni152_template()):
     print("Plotting %s components..." % hemi)
-    
+
     # Determine threshoold and vmax for all the plots
     # get nonzero part of the image for proper thresholding of
     # r- or l- only component
@@ -89,23 +97,24 @@ def plot_components(ica_image, hemi='', out_dir=None,
     thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
     vmax= stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
     for ci, ic_img in enumerate(iter_img(ica_image)):
-        
+
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ci, label=hemi)
         fh = plt.figure(figsize=(14, 6))
         plot_stat_map(ic_img, axes=fh.gca(), threshold=thr, vmax=vmax,
-                     colorbar=True,title=title, black_bg=True, bg_img=bg_img)
+                      colorbar=True,title=title, black_bg=True, bg_img=bg_img)
 
         # Save images instead of displaying
         if out_dir is not None:
             save_and_close(out_path=op.join(
                 out_dir, '%s_component_%i.png' % (hemi, ci)))
-                
+
+
 def plot_components_summary(ica_image, hemi='', out_dir=None,
-                    bg_img=datasets.load_mni152_template()):
+                            bg_img=datasets.load_mni152_template()):
     print("Plotting %s components summary..." % hemi)
-    
+
     n_components = ica_image.get_data().shape[3]
-    
+
     # Determine threshoold and vmax for all the plots
     # get nonzero part of the image for proper thresholding of
     # r- or l- only component
@@ -113,7 +122,7 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
     thr = stats.scoreatpercentile(np.abs(nonzero_img), 90)
     vmax= stats.scoreatpercentile(np.abs(nonzero_img), 99.99)
     for ii, ic_img in enumerate(iter_img(ica_image)):
-        
+
         ri = ii % 5  # row i
         ci = (ii / 5) % 5  # column i
         pi = ii % 25 + 1  # plot i
@@ -125,20 +134,24 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
         ax = fh.add_subplot(5, 5, pi)
 
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ii, label=hemi)
-        
+
         colorbar = True if pi == 25 else False
 
-        plot_stat_map(ic_img, axes=ax, threshold=thr, vmax=vmax, colorbar=colorbar,
-                      title=title, black_bg=True, bg_img=bg_img)
-                      
+        plot_stat_map(
+            ic_img, axes=ax, threshold=thr, vmax=vmax, colorbar=colorbar,
+            title=title, black_bg=True, bg_img=bg_img)
+
         if (ri == 4 and ci == 4) or ii == n_components - 1:
-            out_path = op.join(out_dir, '%s_components_summary%02d.png' % (hemi, fi + 1))
+            out_path = op.join(
+                out_dir, '%s_components_summary%02d.png' % (hemi, fi + 1))
             save_and_close(out_path)
 
 
-def plot_component_comparisons(images, labels, idx_pair, sign_pair, out_dir=None, prefix=""):
-    """ 
-    Uses the idx_pair to match up two images. Sign_pair specifies signs of the images.
+def plot_component_comparisons(images, labels, idx_pair, sign_pair,
+                               out_dir=None, prefix=""):
+    """
+    Uses the idx_pair to match up two images.
+    Sign_pair specifies signs of the images.
     """
     # Be careful
     assert len(images) == 2
@@ -150,37 +163,41 @@ def plot_component_comparisons(images, labels, idx_pair, sign_pair, out_dir=None
     assert len(idx_pair[1]) == n_comp
     assert len(sign_pair[0]) == n_comp
     assert len(sign_pair[1]) == n_comp
-    
+
     # Calculate a vmax optimal across all the plots
     # get nonzero part of the image for proper thresholding of
     # r- or l- only component
-    nonzero_imgs = [img.get_data()[np.nonzero(img.get_data())] for img in images]
+    nonzero_imgs = [img.get_data()[np.nonzero(img.get_data())]
+                    for img in images]
     dat = np.append(nonzero_imgs[0], nonzero_imgs[1])
-    vmax= stats.scoreatpercentile(np.abs(dat), 99.99)
-    
+    vmax = stats.scoreatpercentile(np.abs(dat), 99.99)
+
     print("Plotting results.")
     for i in range(n_comp):
         c1i, c2i = idx_pair[0][i], idx_pair[1][i]
         cis = [c1i, c2i]
-        
+
         png_name = '%s%s_%s_%s.png' % (prefix, labels[0], labels[1], i)
-       
-        comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)] 
-        
+
+        comp_imgs = [index_img(img, ci) for img, ci in zip(images, cis)]
+
         # flip the sign if sign_mat for the corresponding comparison is -1
         signs = [sign_pair[0][i], sign_pair[1][i]]
-        comp_imgs = [math_img("%d*img"%(sign), img = img) for sign, img in zip(signs, comp_imgs)] 
+        comp_imgs = [math_img("%d*img" % (sign), img=img)
+                     for sign, img in zip(signs, comp_imgs)]
 
         if ('R' in labels and 'L' in labels):
             # Combine left and right image, show just one.
             # terms are not combined here
             comp = math_img("img1+img2", img1=comp_imgs[0], img2=comp_imgs[1])
-            titles = [_title_from_terms(terms=comp_imgs[labels.index(hemi)].terms, 
-                                      ic_idx=cis[labels.index(hemi)], label=hemi, 
-                                      sign=signs[labels.index(hemi)]) for hemi in labels]
+            titles = [_title_from_terms(
+                terms=comp_imgs[labels.index(hemi)].terms,
+                ic_idx=cis[labels.index(hemi)], label=hemi,
+                sign=signs[labels.index(hemi)]) for hemi in labels]
             fh = plt.figure(figsize=(14, 8))
-            plot_stat_map(comp, axes=fh.gca(), title="\n".join(titles), black_bg=True,
-                         symmetric_cbar=True, vmax=vmax)
+            plot_stat_map(
+                comp, axes=fh.gca(), title="\n".join(titles), black_bg=True,
+                symmetric_cbar=True, vmax=vmax)
 
         else:
             # Show two images, one above the other.
@@ -189,9 +206,10 @@ def plot_component_comparisons(images, labels, idx_pair, sign_pair, out_dir=None
             for ii in [0, 1]:  # Subplot per image
                 ax = fh.add_subplot(2, 1, ii + 1)
                 comp = comp_imgs[ii]
-       
-                title = _title_from_terms(terms=images[ii].terms, ic_idx=cis[ii], 
-                                    label=labels[ii], sign = signs[ii])
+
+                title = _title_from_terms(
+                    terms=images[ii].terms, ic_idx=cis[ii],
+                    label=labels[ii], sign=signs[ii])
 
                 if ii == 0:
                     display = plot_stat_map(comp, axes=ax, title=title,    # noqa
@@ -201,7 +219,7 @@ def plot_component_comparisons(images, labels, idx_pair, sign_pair, out_dir=None
                     # use same cut coords
                     cut_coords = display.cut_coords  # noqa
                     display = plot_stat_map(comp, axes=ax, title=title,
-                                            black_bg=True, symmetric_cbar=True, 
+                                            black_bg=True, symmetric_cbar=True,
                                             vmax=vmax, display_mode='ortho',
                                             cut_coords=cut_coords)
 
@@ -209,8 +227,9 @@ def plot_component_comparisons(images, labels, idx_pair, sign_pair, out_dir=None
         if out_dir is not None:
             save_and_close(out_path=op.join(out_dir, png_name), fh=fh)
 
-def plot_comparison_matrix(score_mat, labels, scoring, normalize=True, out_dir=None,
-                           vmax=None, colorbar=True, prefix=""):
+
+def plot_comparison_matrix(score_mat, labels, scoring, normalize=True,
+                           out_dir=None, vmax=None, colorbar=True, prefix=""):
 
     # Settings
     score_mat, x_idx, y_idx = reorder_mat(score_mat, normalize=normalize)
@@ -235,83 +254,86 @@ def plot_comparison_matrix(score_mat, labels, scoring, normalize=True, out_dir=N
             prefix, labels[0], labels[1], '-normalized' if normalize else '')))
 
 
-def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g','r','b'],
-                        top_n=4, bottom_n=4, standardize=True, out_dir=None):
+def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g', 'r', 'b'],
+                          top_n=4, bottom_n=4, standardize=True, out_dir=None):
     '''
-    Take the list of ica image terms and the indices of components to be compared, and 
+    Take the list of ica image terms and the indices of components to be compared, and
     plots the top n and bottom n term values for each component as a radar graph.
-    
+
     The sign_list should indicate whether term values should be flipped (-1) or not (1).
     '''
-    assert len(terms)==len(labels)
-    assert len(terms)==len(ic_idx_list)
-    assert len(terms)==len(sign_list)
-    assert len(terms)==len(color_list)
+    assert len(terms) == len(labels)
+    assert len(terms) == len(ic_idx_list)
+    assert len(terms) == len(sign_list)
+    assert len(terms) == len(color_list)
     n_comp = len(ic_idx_list[0])   # length of each ic_idx_list and sign_list
     for i in range(len(terms)):
-        assert len(ic_idx_list[i])==n_comp
-        assert len(sign_list[i])==n_comp
-    
+        assert len(ic_idx_list[i]) == n_comp
+        assert len(sign_list[i]) == n_comp
+
     # iterate over the ic_idx_list and sign_list for each term and plot
     for n in range(n_comp):
-                  
-        terms_of_interest =[]
+
+        terms_of_interest = []
         term_vals = []
         name = ''
-        
+
         for i, (term, label) in enumerate(zip(terms, labels)):
             idx = ic_idx_list[i][n]
             sign = sign_list[i][n]
-            # Get list of top n and bottom n terms for each term list  
-            top_terms = get_n_terms(term, idx, n_terms=top_n, top_bottom = 'top', sign=sign)
-            bottom_terms = get_n_terms(term, idx, n_terms=bottom_n, top_bottom = 'bottom', sign=sign)
+            # Get list of top n and bottom n terms for each term list
+            top_terms = get_n_terms(
+                term, idx, n_terms=top_n, top_bottom='top', sign=sign)
+            bottom_terms = get_n_terms(
+                term, idx, n_terms=bottom_n, top_bottom='bottom', sign=sign)
             combined = np.append(top_terms, bottom_terms)
             terms_of_interest.append(combined)
-            
+
             # Also store term vals (z-score if standardize) for each list
-            t, vals = get_ic_terms(term, idx, sign = sign, standardize = standardize)
-            s = pd.Series(vals, index = t, name = label)
+            t, vals = get_ic_terms(term, idx, sign=sign, standardize=standardize)
+            s = pd.Series(vals, index=t, name=label)
             term_vals.append(s)
-        
+
             # Construct name for the comparison
-            name += label + '[%d] '%(idx)  
-        
-        # Data for all the terms 
-        term_df = pd.concat(term_vals, axis = 1)
-    
+            name += label + '[%d] ' % (idx)
+
+        # Data for all the terms
+        term_df = pd.concat(term_vals, axis=1)
+
         # Get unique terms from terms_of_interest list
         toi_unique = np.unique(terms_of_interest)
-    
+
         # Get values for unique terms_of_interest
         data = term_df.loc[toi_unique]
-        data = data.sort_values(labels, ascending =False)  
-    
+        data = data.sort_values(labels, ascending=False)
+
         # Now plot radar!
         N = len(toi_unique)
         theta = radar_factory(N)
         fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(1,1,1, projection='radar')
-        title = "Term comparisons for %scomponents"%(name)
+        title = "Term comparisons for %scomponents" % (name)
         ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
-                    horizontalalignment='center', verticalalignment='center')
-    
-        y_min, y_max, y_tick  = nice_bounds(data.values.min(), data.values.max())
-        ax.set_ylim(y_min,y_max)
+                     horizontalalignment='center', verticalalignment='center')
+
+        y_min, y_max, y_tick = nice_bounds(data.values.min(), data.values.max())
+        ax.set_ylim(y_min, y_max)
         ax.set_yticks([0], minor=True)
         ax.set_yticks(y_tick)
         ax.yaxis.grid(which='major', linestyle=':')
-        ax.yaxis.grid(which='minor', linestyle='-') 
-         
+        ax.yaxis.grid(which='minor', linestyle='-')
+
         for label, color in zip(labels, color_list):
-            ax.plot(theta,data[label], color = color)
-            ax.fill(theta,data[label], facecolor=color, alpha=0.25) 
+            ax.plot(theta, data[label], color = color)
+            ax.fill(theta, data[label], facecolor=color, alpha=0.25)
         ax.set_varlabels(data.index.values)
-    
+
         legend = plt.legend(labels, loc=(1.1, 0.9), labelspacing=0.1)
         plt.setp(legend.get_texts(), fontsize='small')
 #        plt.show()
-    
+
         # Saving
         if out_dir is not None:
-            save_and_close(out_path=op.join(out_dir, '%sterm_comparisons.png' % (
-                        name.replace(" ", "_"))))
+            save_and_close(
+                out_path=op.join(out_dir, '%sterm_comparisons.png' % (
+                    name.replace(" ", "_"))))
