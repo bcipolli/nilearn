@@ -59,7 +59,7 @@ def nice_bounds(axis_start, axis_end, num_ticks=8):
         nice_tick_w = 0
     else:
         nice_range = nice_number(axis_width)
-        nice_tick_w = nice_number(nice_range / (num_ticks - 1), round=True)
+        nice_tick_w = nice_number(nice_range / (num_ticks - 1), round_=True)
         axis_start = math.floor(axis_start / nice_tick_w) * nice_tick_w
         axis_end = math.ceil(axis_end / nice_tick_w) * nice_tick_w
 

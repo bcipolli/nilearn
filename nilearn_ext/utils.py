@@ -74,7 +74,7 @@ def get_match_idx_pair(score_mat, sign_mat, force=False):
         ordered_cols = cols[np.argsort(rows)]
         sign_arr = sign_mat[[ordered_rows, ordered_cols]]
 
-        matched_idx_arr = np.vstack(ordered_rows, ordered_cols, sign_arr)  #noqa
+        matched_idx_arr = np.vstack((ordered_rows, ordered_cols, sign_arr))
         unmatched_idx_arr = None
 
     else:
