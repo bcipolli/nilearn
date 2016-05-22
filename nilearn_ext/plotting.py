@@ -261,7 +261,7 @@ def plot_comparison_matrix(score_mat, labels, scoring, normalize=True,
             prefix, labels[0], labels[1], '-normalized' if normalize else '')))
 
 
-def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g', 'r', 'b'],
+def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=('g', 'r', 'b'),
                           top_n=4, bottom_n=4, standardize=True, out_dir=None):
     """
     Take the list of ica image terms and the indices of components to be compared, and
@@ -312,7 +312,7 @@ def plot_term_comparisons(terms, labels, ic_idx_list, sign_list, color_list=['g'
 
         # Get values for unique terms_of_interest
         data = term_df.loc[toi_unique]
-        data = data.sort_values(labels, ascending=False)
+        data = data.sort_values(list(labels), ascending=False)
 
         # Now plot radar!
         N = len(toi_unique)
