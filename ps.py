@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import re
 
-from main import main
+from main import do_main_analysis, get_dataset
 from nibabel_ext import NiftiImageWithTerms
 from nilearn_ext.masking import HemisphereMasker
 from nilearn_ext.plotting import save_and_close
@@ -142,20 +142,27 @@ def image_analyses(components, dataset, memory=Memory(cachedir='nilearn_cache'),
     save_and_close(out_path, fh=fh)
 
 
-def main_ic_loop(components, scoring, dataset,
+def main_ic_loop(components, scoring,
+                 dataset, query_server=True, force=False,
                  memory=Memory(cachedir='nilearn_cache'), **kwargs):
     match_methods = ['wb', 'rl', 'lr']
     out_dir = op.join('ica_imgs', dataset)
     mean_scores, unmatched = [], []
+
+    # Get the data once.
+    images, term_scores = get_dataset(
+        dataset, query_server=query_server)
+
     for match in match_methods:
         print("Plotting results for %s matching method" % match)
         mean_score_d, num_unmatched_d = {}, {}
         for force_match in [False, True]:
             for c in components:
                 print("Running analysis with %d components" % c)
-                img_d, score_mats_d, sign_mats_d = main(key=match, force_match=force_match,
-                                                        n_components=c, dataset=dataset,
-                                                        scoring=scoring, **kwargs)
+                img_d, score_mats_d, sign_mats_d = do_main_analysis(
+                    dataset=dataset, images=images, term_scores=term_scores,
+                    key=match, force=force, force_match=force_match,
+                    n_components=c, scoring=scoring, **kwargs)
 
                 # Get mean dissimilarity scores and number of unmatched for each comparisons
                 # in score_mats_d
