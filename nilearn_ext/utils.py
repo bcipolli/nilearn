@@ -96,7 +96,7 @@ def get_match_idx_pair(score_mat, sign_mat, force=False):
             unmatched_signs = sign_mat[[unmatched_rows, unmatched_cols]]
             
             unmatch["idx"] = np.vstack((unmatched_rows, unmatched_cols))
-            unmatch["sign"] = np.vstack((np.ones(len(rows)), unmatched_signs))
+            unmatch["sign"] = np.vstack((np.ones(len(unmatched_rows)), unmatched_signs))
 
     return match, unmatch
 
