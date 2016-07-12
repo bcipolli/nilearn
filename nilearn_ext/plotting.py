@@ -142,7 +142,7 @@ def plot_components_summary(ica_image, hemi='', out_dir=None,
 
         title = _title_from_terms(terms=ica_image.terms, ic_idx=ii, label=hemi)
 
-        colorbar = True if pi == 25 else False
+        colorbar = True if ci == 4 else False
 
         plot_stat_map(
             ic_img, axes=ax, threshold=thr, vmax=vmax, colorbar=colorbar,
