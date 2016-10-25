@@ -2132,12 +2132,15 @@ def fetch_neurovault(max_images=np.inf,
                 for im in good_images:
                     im_url = im['file']
                     im_filename = os.path.basename(im['file'])
+                    ext = '.nii.gz' if im_filename.endswith('.nii.gz') else (
+                        os.path.splitext(im_filename)[1])
+                    new_im_filename = 'image_%d%s' % (im['id'], ext)
 
                     # Download file
                     try:
                         real_image_path = _fetch_files(
                             collections_dir,
-                            files=[(im_filename, im_url, {})],
+                            files=[(new_im_filename, im_url, {'move': new_im_filename})],
                             verbose=verbose, query_server=query_server)[0]
                     except Exception as e:
                         print("ERROR: failed to download image %d (col=%d): %s" % (
